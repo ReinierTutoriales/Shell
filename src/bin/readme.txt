@@ -1,30 +1,30 @@
-﻿Nilesoft Shell 
+﻿Nilesoft Shell
 
-[about]
-Shell is a powerful, lightweight extension for Windows File Explorer that gives the user a high level of control over the context menu to improve its performance. 
-Compatible with Windows 7 or later.
+[acerca_de]
+Shell es una extensión potente y ligera para el Explorador de archivos de Windows que ofrece un alto nivel de control sobre el menú contextual y permite adaptarlo, organizarlo y optimizarlo.
+Compatible con Windows 7 o posterior, con integración visual optimizada para Windows 11 en este fork.
 
-[update]
-(*) If you are updating, please first uninstall/unregister previous version.
+[actualización]
+(*) Si está actualizando desde una versión anterior, desinstale o anule el registro de la versión previa antes de instalar esta.
 
-[donate]
-If you really love Shell and would like to see it continue to improve.
+[donaciones]
+Si desea apoyar el desarrollo original de Shell:
 https://nilesoft.org/donate
 
-[support]
+[soporte]
 https://nilesoft.org
 https://nilesoft.org/github
 support@nilesoft.org
 
-[DISCLAIMER]
-THE SOFTWARE IS DISTRIBUTED "AS IS". NO WARRANTY OF ANY KIND IS
-EXPRESSED OR IMPLIED. YOU USE THE SOFTWARE AT YOUR OWN RISK. THE
-AUTHORS WILL NOT BE LIABLE FOR DATA LOSS, DAMAGES, LOSS OF PROFITS OR
-ANY OTHER KIND OF LOSS WHILE USING OR MISUSING THE SOFTWARE.
+[AVISO_LEGAL]
+EL SOFTWARE SE DISTRIBUYE "TAL CUAL". NO SE OFRECE NINGUNA GARANTÍA,
+EXPRESA NI IMPLÍCITA. EL USO DEL SOFTWARE SE REALIZA BAJO SU PROPIO
+RIESGO. LOS AUTORES NO SERÁN RESPONSABLES POR PÉRDIDA DE DATOS, DAÑOS,
+PÉRDIDA DE BENEFICIOS NI CUALQUIER OTRO TIPO DE PÉRDIDA DERIVADA DEL
+USO O USO INDEBIDO DEL SOFTWARE.
 
 Copyright (C) 2024 Nilesoft Ltd.
 
 [plutovg]
 Copyright (c) 2020 Nwutobo Samuel Ugochukwu
 https://github.com/sammycage/plutovg
-
