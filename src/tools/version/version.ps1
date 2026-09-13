@@ -17,7 +17,7 @@ function Debug-Output($msg)
 {
 	#~return ## disabled debug output
 	if ($msg -ne $null) { 
-      	Write-Host ""
+     	Write-Host ""
 		Write-Host "$msg"
 	}
 }
@@ -64,12 +64,8 @@ function update($src, $dest)
 
 function update-regex($content, $key, $val)
 {
-	#$regex = [regex]( '(\$' + $key + ')([\s+]?=[\s+]?)(\d+)$')
-	#$content = $content -replace $regex, ('$1 = ' + $val)
-	
 	$regex = [regex]( '(?<key>\$' + $key + ')([\s]+?=[\s]+?)(\d+)')
-	$content = $content -replace $regex, ('${key}	= ' + $val)
-
+	$content = $content -replace $regex, ('${key}\t= ' + $val)
 	return $content;
 }
 
@@ -78,7 +74,7 @@ try
 	$ChangeBuild	= 0
 	$ChangeRevis	= 0
 	
-	$___Build__	= 19	# auto increase
+	$___Build__	= 20	# auto increase
 	$___Revis__	= 0	# auto increase
 	
 	$AppCompany		= "Nilesoft"
@@ -88,9 +84,9 @@ try
 	$AppProcess		= "64-bit"
 
 	$Major			= 1
-	$Minor			= 9		#[int]$(Get-Date -format yy)
-	$Build 			= $___Build__ #[int](Get-Content "build.txt")
-	$Revis 			= $___Revis__ #[int]$(Get-Date -format Mdd)
+	$Minor			= 9
+	$Build 			= $___Build__
+	$Revis 			= $___Revis__
 	$YEAR 			= [int]$(Get-Date -format yyyy)
 	
 	if(!$Build) 
@@ -98,7 +94,6 @@ try
 		$Build = 0
 	}
 
-	# locally: increase build number and persit it
 	if($ChangeBuild)
 	{
 		$Build = $Build + 1
@@ -109,13 +104,11 @@ try
 		$Revis = $Revis + 1
 	}
 	
-	#$Build | Set-Content "build.txt"
 	$Version = "$Major.$Minor.$Build.$Revis"
 
 	Debug-Output("Nilesoft Shell version number: $Version")
 
 	update "Resource.h" "..\..\shared\Resource.h";
-	#update "Shell.rc" "..\..\shared\Resource\Shell.rc";
 	update "manifest.xml" "..\..\shared\Resource\manifest.xml";
 	update "Shell.def" "..\..\dll\src\Shell.def";
 	update "var.wxi" "..\..\setup\wix\var.wxi";
@@ -130,12 +123,8 @@ try
 	if($ChangeRevis)
 	{
 		$content = update-regex $content  '___Revis__'  $Revis
-		#$key = '___Revis__'
-		#$regex = [regex]( '(?<key>\$' + $key + ')([\s]+?=[\s]+?)(\d+)')
-		#$content = $content -replace $regex, ('${key}	= ' + $Revis)
 	}
 	
-	#$content = $content -replace $regex, ('$1 = ' + $BUILD)#  | Set-Content "Version.ps1"
 	$content | Set-Content $ScriptPath
 }
 catch 
