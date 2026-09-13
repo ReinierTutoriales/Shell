@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - ".github/workflows/release.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, x86, arm64]
+
+    env:
+      SOLUTION_FILE_PATH: src/Shell.sln
+      BUILD_CONFIGURATION: release
+      BUILD_PLATFORM: ${{ matrix.platform }}
+      BIN_PATH: D:\a\Shell\Shell\src\bin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+
+      - name: Build
+        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} ${{ env.SOLUTION_FILE_PATH }}
+
+      - name: Stage package
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "shell-${{ matrix.platform }}"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Get-ChildItem "${{ env.BIN_PATH }}" -Force |
+            Where-Object { $_.Extension -notin '.lib', '.exp', '.wixpdb' -and $_.Name -ne 'ca.dll' } |
+            Copy-Item -Destination $out -Recurse -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shell-${{ matrix.platform }}
+          path: ${{ runner.temp }}\shell-${{ matrix.platform }}\*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $text = Get-Content "src/shared/Resource.h" -Raw
+          $match = [regex]::Match($text, 'APP_VERSION\s+L"([0-9]+\.[0-9]+\.[0-9]+)"')
+          if (-not $match.Success) { throw "Unable to read APP_VERSION" }
+          "version=$($match.Groups[1].Value)" >> $env:GITHUB_OUTPUT
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create ZIP packages
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          foreach ($arch in @('x64','x86','arm64')) {
+            $src = Join-Path "artifacts" "shell-$arch"
+            $zip = Join-Path "artifacts" "Shell-$version-$arch.zip"
+            Compress-Archive -Path "$src\*" -DestinationPath $zip -CompressionLevel Optimal -Force
+          }
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $tag = "v$version"
+          $title = "Shell $version - Español / Windows 11 Fluent"
+          $notes = @"
+          Fork de Nilesoft Shell enfocado en integración con Windows 11.
+
+          Cambios principales:
+          - Localización española corregida y ampliada.
+          - Menús de archivos, navegación, desarrollo y terminal localizados.
+          - Tema Fluent con Acrylic nativo.
+          - Segoe UI Variable Text para texto y Segoe Fluent Icons para glyphs.
+          - Espaciado, radios, bordes y sombras ajustados al lenguaje visual de Windows 11.
+          - Versión actualizada a $version.
+
+          Paquetes disponibles para x64, x86 y ARM64.
+          "@
+
+          $exists = $false
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) { $exists = $true }
+
+          if (-not $exists) {
+            gh release create $tag `
+              --repo "${{ github.repository }}" `
+              --target "${{ github.sha }}" `
+              --title $title `
+              --notes $notes
+          }
+
+          gh release upload $tag `
+            "artifacts/Shell-$version-x64.zip" `
+            "artifacts/Shell-$version-x86.zip" `
+            "artifacts/Shell-$version-arm64.zip" `
+            --repo "${{ github.repository }}" `
+            --clobber
