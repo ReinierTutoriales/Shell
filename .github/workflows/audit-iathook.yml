@@ -1,0 +1,53 @@
+name: Audit IAT hook consumers
+on:
+  push:
+    paths: ['.github/workflows/audit-iathook.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Scan source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('src')
+          files=[p for p in root.rglob('*') if p.suffix.lower() in {'.h','.hpp','.c','.cc','.cpp','.cxx'}]
+          targets={
+            'invoke': '.invoke(',
+            'ntuser_invoke': 'iathook_NtUserTrackPopupMenuEx.invoke',
+            'trackpopup': 'iathook_TrackPopupMenu',
+            'orignal_template': '.orignal<',
+            'iathook': 'IATHook',
+          }
+          out=[]
+          counts={k:0 for k in targets}
+          external_invoke=[]
+          for p in files:
+            try: lines=p.read_text(encoding='utf-8-sig',errors='replace').splitlines()
+            except OSError: continue
+            for n,line in enumerate(lines,1):
+              for k,t in targets.items():
+                if t in line:
+                  counts[k]+=1
+                  out.append(f'{k}\t{p}:{n}\t{line.strip()}')
+                  if k=='invoke' and p.as_posix()!='src/dll/src/Include/Hooker.h':
+                    external_invoke.append((p,n,line.strip()))
+          report=['COUNTS']+[f'{k}={v}' for k,v in counts.items()]+['','MATCHES']+out+['','EXTERNAL_INVOKE']
+          report += [f'{p}:{n}\t{s}' for p,n,s in external_invoke] or ['NONE']
+          Path('iathook-audit.txt').write_text('\n'.join(report)+'\n',encoding='utf-8')
+          print('\n'.join(report))
+          if external_invoke:
+            raise SystemExit('external .invoke consumers found')
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: iathook-audit
+          path: iathook-audit.txt
+          retention-days: 1
