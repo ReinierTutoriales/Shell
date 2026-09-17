@@ -84,7 +84,7 @@ jobs:
         with:
           path: artifacts
 
-      - name: Create ZIP packages
+      - name: Create ZIP packages and checksums
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
@@ -92,6 +92,9 @@ jobs:
             $src = Join-Path "artifacts" "shell-$arch"
             $zip = Join-Path "artifacts" "Shell-$version-$arch.zip"
             Compress-Archive -Path "$src\*" -DestinationPath $zip -CompressionLevel Optimal -Force
+            $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+            $name = Split-Path $zip -Leaf
+            "$hash  $name" | Set-Content "$zip.sha256" -Encoding ascii
           }
 
       - name: Publish release
@@ -113,7 +116,7 @@ jobs:
           - Espaciado, radios, bordes y sombras ajustados al lenguaje visual de Windows 11.
           - Versión actualizada a $version.
 
-          Paquetes disponibles para x64, x86 y ARM64.
+          Paquetes disponibles para x64, x86 y ARM64. Cada ZIP incluye un archivo .sha256 independiente para verificar su integridad.
           "@
 
           $exists = $false
@@ -130,7 +133,10 @@ jobs:
 
           gh release upload $tag `
             "artifacts/Shell-$version-x64.zip" `
+            "artifacts/Shell-$version-x64.zip.sha256" `
             "artifacts/Shell-$version-x86.zip" `
+            "artifacts/Shell-$version-x86.zip.sha256" `
             "artifacts/Shell-$version-arm64.zip" `
+            "artifacts/Shell-$version-arm64.zip.sha256" `
             --repo "${{ github.repository }}" `
             --clobber
