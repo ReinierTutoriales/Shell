@@ -53,11 +53,11 @@ struct DWM
 {
 	enum class BackdropType : int
 	{
-		Default = 0,
+		Auto = 0,
 		None = 1,
-		Mica = 2,
-		Acrylic = 3,
-		Tabbed = 4,
+		MainWindow = 2,
+		TransientWindow = 3,
+		TabbedWindow = 4,
 	};
 
 	enum class Corner : int
@@ -100,8 +100,8 @@ struct DWM
 	}
 
 	/// <summary>
-	/// Set backdrop type on target window
-	/// Requires Windows build 22523 or higher.
+	/// Requests a system-managed backdrop. DWMWA_SYSTEMBACKDROP_TYPE is public
+	/// starting with Windows 11 22H2 (build 22621).
 	/// </summary>
 	HRESULT SetBackdropType(BackdropType backdropType)
 	{
@@ -109,15 +109,6 @@ struct DWM
 		return SetAttribute(DWMWA_SYSTEMBACKDROP_TYPE, backdropType);
 	}
 
-	/// <summary>
-	/// Enable or Disable Mica on target window
-	/// Supported on Windows builds from 22000 to 22523. It doesn't work on 22523, use <see cref="SetBackdropType(IntPtr, DWM_SYSTEMBACKDROP_TYPE)"/> instead.
-	/// </summary>
-	HRESULT SetMica(BOOL state = true)
-	{
-		const auto DWMWA_MICA = 1029U;
-		return SetAttribute(DWMWA_MICA, state);
-	}
 
 	template<typename T>
 	HRESULT SetAttribute(DWORD dwAttribute, T pvAttribute)
@@ -5035,12 +5026,20 @@ namespace Nilesoft
 			//SetLayeredWindowAttributes(hWnd, 0x0ff00, 0, LWA_COLORKEY);
 			if(composition)
 			{
-				AccentPolicy ap(hWnd);
-				//ap.set(AccentPolicy::Disabled);
-				//ap.set(ap.AcrylicBlurBehind, ap.AllowSetWindowRgn, _theme.background.color.to_ABGR());
+				bool systemBackdropApplied = false;
 
-				//if(_theme.transparent)
-				Compositor::TransparentArea(hWnd);
+				// Context menus are transient surfaces. Prefer the documented Windows 11
+				// system backdrop when Windows composition/transparency policy allows it.
+				// NSS effects continue to be resolved by the existing theme pipeline.
+				if(ver->build() >= 22621 && !_theme.isHighContrast && _theme.enableTransparency)
+				{
+					systemBackdropApplied = SUCCEEDED(DWM(hWnd).SetBackdropType(DWM::BackdropType::TransientWindow));
+				}
+
+				// Keep the proven compositor path as the fail-safe on unsupported Windows,
+				// transparency-off configurations, or if DWM rejects the public attribute.
+				if(!systemBackdropApplied)
+					Compositor::TransparentArea(hWnd);
 			}
 
 			BOOL enabled = TRUE;
