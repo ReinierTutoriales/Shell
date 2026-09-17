@@ -45,7 +45,17 @@ namespace Nilesoft
 
 			static HICON FromResourceById(const wchar_t* path, const wchar_t* id)
 			{
-				return ::LoadIconW(DLL(path), id);
+				if(!path || !id)
+					return nullptr;
+
+				auto module = ::LoadLibraryExW(path, nullptr,
+					LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+				if(!module)
+					return nullptr;
+
+				auto icon = (HICON)::LoadImageW(module, id, IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
+				::FreeLibrary(module);
+				return icon;
 			}
 
 			static HICON FromResourceByIndex(const wchar_t *path, int index, int size)
