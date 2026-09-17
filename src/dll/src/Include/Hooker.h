@@ -211,13 +211,27 @@ namespace Nilesoft::Shell
 
 		IATHook &init(HMODULE hModule, const char *import, void *orignal, void *detour)
 		{
-			// Increment module reference count to prevent other threads from unloading it while we're working with it
-			if(::GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hModule, &_hModule) && _hModule)
+			if(!hModule)
+				return *this;
+
+			HMODULE module{};
+			// Increment module reference count to prevent other threads from unloading it while we're working with it.
+			if(::GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(hModule), &module) && module)
 			{
-				//_hModule = hModule;
-				_import = import;
+				// Do not discard an installed hook or its module reference during reinitialization.
+				if(installed())
+				{
+					::FreeLibrary(module);
+					return *this;
+				}
+
+				if(_hModule)
+					::FreeLibrary(_hModule);
+				_hModule = module;
+				_import = import ? import : "";
 				_orignal = reinterpret_cast<uintptr_t>(orignal);
 				_detour = reinterpret_cast<uintptr_t>(detour);
+				_thunk = {};
 			}
 			return *this;
 		}
@@ -252,7 +266,8 @@ namespace Nilesoft::Shell
 			if(installed())
 				ret = commit(_orignal, flush);
 
-			if(cleare)
+			// Never clear ownership/state while the detour is still installed.
+			if(cleare && !installed())
 			{
 				// Release the reference acquired by GetModuleHandleExW before clearing state.
 				if(_hModule) ::FreeLibrary(_hModule);
