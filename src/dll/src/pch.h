@@ -113,6 +113,7 @@ using namespace Nilesoft;
 #include "Parser\Parser.h"
 #include "Include\Hooker.h"
 #include "Include\Initializer.h"
+#include "Include\WindowsVisualState.h"
 // Global variable definition
 // explicit declaration
 #include "Include\FindPattern.h"
