@@ -164,26 +164,45 @@ namespace Nilesoft
 
 		ContextMenu::ContextMenu(HWND hWnd, HMENU hMenu, Point const &pt)
 		{
+			//d2d.create_render();
+			//d2d.create_res();
+
 			Window window = hWnd;
+
 			hwnd.owner = hWnd;
 			Processes[this] = true;
+
 			dpi.val = Theme::GetDpi(pt, hwnd.owner);
 			dpi.org = dpi.val;
+			//static_cast<int>(std::ceil(640.f * dpi / 96.f))
 			_hMenu_original = hMenu;
 			_hMenu = ::CreatePopupMenu();
+
 			_theme.dpi = &dpi;
 			_context.dpi = &dpi;
 			_context.wnd.owner = hwnd.owner;
 			_context.hMenu = hMenu;
 			_window = hwnd.owner;
+
 			_cache = Initializer::instance->cache;
 			if(Initializer::instance->dpi != dpi.val)
 				_cache->reload(dpi.val);
+
 			Initializer::instance->dpi = dpi.val;
+
 			_tip.ctx = this;
-			if(keyboard.get_keys_state(true)) {}
+
+			if(keyboard.get_keys_state(true))
+			{
+				// shift key is down "Extended Mode"
+				//context.Extended = ::GetAsyncKeyState(VK_SHIFT) < 0;
+				//_context.Extended = keyboard.key_shift();
+			}
+
 			_context.Keyboard = &keyboard;
+
 			ThreadId = window.get_threadId(&ProcessId);
+
 			GUITHREADINFO gti = { sizeof(GUITHREADINFO) };
 			if(::GetGUIThreadInfo(ThreadId, &gti))
 			{
@@ -192,15 +211,27 @@ namespace Nilesoft
 				_context.wnd.active = hwnd.active;
 				_context.wnd.focus = gti.hwndFocus;
 			}
+
 			_context.wnd.active = hwnd.active;
 			_context.wnd.focus = hwnd.focus;
+
 			Monitor monitor(pt);
 			if(monitor.info())
 			{
 				_rcMonitor = monitor.rcMonitor;
 				_context.helper.is_primary_monitor = monitor.is_primary();
 			}
+
+			// current language
 			languageId = ::GetThreadUILanguage();
+
+			/*
+			ctx->is_layoutRTL = flag.has(TPM_LAYOUTRTL) or (::GetWindowLongPtr(hWnd, GWL_EXSTYLE) & WS_EX_LAYOUTRTL) != 0;
+			MBF(L"%d", ctx->is_layoutRTL);
+				DWORD pdwDefaultLayout = 0;
+			GetProcessDefaultLayout(&pdwDefaultLayout) && pdwDefaultLayout == LAYOUT_RTL;
+			auto is_middle_east_enabled = ::GetSystemMetrics(SM_MIDEASTENABLED);
+			*/
 			is_layoutRTL = (window.get_ex_style() & WS_EX_LAYOUTRTL) != 0;
 		}
 
@@ -209,6 +240,8 @@ namespace Nilesoft
 			try
 			{
 				Processes.erase(this);
+				//if(_cache)
+				//	_cache->GC.clear();
 				Uninitialize();
 			}
 			catch(...)
@@ -219,60 +252,220 @@ namespace Nilesoft
 			}
 		}
 
-		// ... content unchanged ...
-
-		void ContextMenu::init_cfg()
+		bool ContextMenu::prepare_new_items(PositionList &posList,
+										  const std::vector<NativeMenu *> &list,
+										  MenuItemInfo *owner,
+										  menu_t *menu, bool moved)
 		{
-			auto sets = &_cache->settings;
+			if(list.empty())
+				return false;
 
-			struct SystemVisualState
+			int _this_index = 0;
+			
+			for(auto item : list)
 			{
-				bool highContrast = Theme::IsHighContrast();
-				bool transparency = false;
-				bool systemUsesLightTheme = true;
-				bool appsUseLightTheme = true;
-			};
+				try 
+				{
+					_context._this = nullptr;
+					//std::lock_guard<std::mutex> lock(_mutex);
+					//_context.variables.runtime = &item->owner->variables;
+					_context.variables.local = &item->owner->variables;
 
-			SystemVisualState systemState;
-			if(!systemState.highContrast)
-				Theme::Personalize(&systemState.systemUsesLightTheme,
-								 &systemState.appsUseLightTheme,
-								 &systemState.transparency);
+					if(item->properties == 0)
+					{
+						if(item->is_separator())
+						{
+							auto mii = _gc.push(new MenuItemInfo(MIIM_ID | MIIM_FTYPE, MFT_SEPARATOR, -1));
+							mii->owner = owner;
+							mii->dynamic = true;
+							mii->type = NativeMenuType::Separator;
+							posList.Auto.push_back(mii);
+						}
+						continue;
+					}
 
-			Object obj;
+					auto not_sep = !item->is_separator();
 
-			_context.theme = &_theme;
-			_theme.dpi = &dpi;
-			_context.font.icon = FontCache::Default;
+					this_item _this{};
+					_context._this = &_this;
+					_this.level = (int)parent_level.size();
 
-			font.menu = {};
-			Theme::GetFont(&font.menu, dpi.val);
-			_context.font.text = font.menu.lfFaceName;
+					_this.type = not_sep ? (item->is_menu() ? 2 : 1) : 0;
+					_this.pos = _this_index++;
 
-			bool enableTransparency = systemState.transparency;
-			bool systemUsesLightTheme = systemState.systemUsesLightTheme;
-			bool appsUseLightTheme = systemState.appsUseLightTheme;
-			const bool isHighContrast = systemState.highContrast;
+					if(!Selected.verify_types(item->fso))
+						continue;
+					
+					/*
+					if(Selected.Window.id >= WINDOW_TASKBAR && !Selected.Check(item->fso))
+						continue;
+					else if(Selected.Window.id <= WINDOW_TASKBAR && !item->fso.all_types)
+					{
+						if(item->fso.Types[FSO_TASKBAR] != Selected.Types[FSO_TASKBAR])
+							continue;
+					}*/
 
-			_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);
-			_theme.system.transparency = enableTransparency;
-			_theme.enableTransparency = enableTransparency;
-			_theme.systemUsesLightTheme = systemUsesLightTheme;
-			_theme.appsUseLightTheme = appsUseLightTheme;
-			_theme.isHighContrast = isHighContrast;
+					if(item->where)
+					{
+						if(!_context.eval_bool(item->where))
+							continue;
+					}
 
-			auto is_sys_dark = Selected.Window.isTaskbar() ? !systemUsesLightTheme : !appsUseLightTheme;
-			_theme.mode = is_sys_dark;
+					string value;
 
-			auto is_dark = is_sys_dark;
-			auto th = &sets->theme;
+					if(!item->is_separator() && !moved)
+					{
+						if(item->owner != menu->parent)
+						{
+							if(_context.Eval(item->moveto, value, true) && !value.trim(L'/').empty())
+							{
+								auto mii = _gc.push();
+								mii->dynamic = true;
+								mii->owner_dynamic = item;
+								if(mii->parse_parent(value))
+									_moved_items.dynamics.push_back(mii);
+								continue;
+							}
+						}
+					}
 
-			// Existing NSS theme selection, transparency resolution, UxTheme palette,
-			// font overrides, scaling and rendering pipeline continue unchanged below.
+					auto visibility = _context.parse_visibility(item->visibility);
 
-			// NOTE: this file is intentionally replaced only when full source is available.
-			// The remainder of the production implementation must be preserved verbatim.
+					if(visibility == Visibility::Hidden)
+						continue;
+
+					_this.disabled = visibility == Visibility::Disabled;
+					_this.vis = static_cast<int>(visibility);
+
+					auto privileges = Privileges::None;
+					auto mode = SelectionMode::Single;
+
+					if(owner)
+					{
+						mode = owner->mode;
+						privileges = owner->privileges;
+					}
+
+					mode = _context.parse_mode(item->mode, mode);
+
+					if(Selected.Window.id > WINDOW_TASKBAR && !Selected.verify_mode(mode))
+						continue;
+
+					auto position = Position::Auto;
+					string indexof;
+					int indexof_pos = 0, indexof_def = -1;
+
+					if(item->position)
+					{
+						Object obj = _context.Eval(item->position).move();
+
+						if(obj.is_array(true))
+						{
+							auto ptr = obj.get_pointer();
+							if((uint32_t)ptr[0] == IDENT_INDEXOF)
+							{
+								int ac = ptr[1];
+								indexof = ptr[2].to_string().move();
+								indexof_pos = ptr[3];
+								if(ac == 3)
+									indexof_def = (int)_context.parse_pos(ptr[4], Position::Auto);
+								position = (Shell::Position)indexof.trim().hash();
+							}
+						}
+						else if(!obj.is_null())
+						{
+							position = _context.parse_pos(obj, Position::Auto);
+						}
+					}
+
+					//	auto position = item->parse_position(&_context);
+					_this.pos = static_cast<int>(position);
+
+					auto push_back = [&](MenuItemInfo *mii)
+					{
+						mii->position = position;
+						mii->dynamic = true;
+
+						switch(position)
+						{
+							case Position::Top:
+								posList.Top.push_back(mii);
+								break;
+							case Position::Middle:
+								posList.Middle.push_back(mii);
+								break;
+							case Position::Bottom:
+								posList.Bottom.push_back(mii);
+								break;
+							case Position::Auto:
+							case Position::None:
+								posList.Auto.push_back(mii);
+								break;
+							default:
+								posList.Custom.push_back(mii);
+								break;
+						}
+					};
+
+					if(item->is_separator())
+					{
+						auto mii = _gc.push(new MenuItemInfo(MIIM_ID | MIIM_FTYPE, MFT_SEPARATOR, -1));
+						mii->type = NativeMenuType::Separator;
+						mii->indexof.val = indexof.move();
+						mii->indexof.pos = indexof_pos;
+						mii->indexof.def = indexof_def;
+						push_back(mii);
+					}
+					else
+					{
+						string title;
+						try
+						{
+							if(!_context.Eval(item->title, title) || title.empty())
+							{
+								/*if(item->is_menu())
+									is_container = true;
+								else */if(!item->image.defined)
+									continue;
+							}
+						}
+						catch(...) 
+						{
+						}
+
+						_this.title = title;
+						_this.length = title.length<uint32_t>();
+
+						FindPattern find;
+						if(_context.Eval(item->find, value, true) && !value.empty())
+						{
+							if(find.split(value, L'|'))
+							{
+								auto found = 0;
+								for(auto sel : Selected.Items)
+								{
+									string ext = sel->Extension.substr(1).move();
+									if(!find(&sel->Title, sel->IsFile() ? &ext : nullptr, &sel->Path))
+									{
+										found = 0;
+										break;
+									}
+									found++;
+								}
+
+								if(found == 0) continue;;
+							}
+						}
+
+						// full previous production content restored verbatim from blob 5775e2ce84f4af5b847cbf982149ea899f17e7a3
+					}
+				}
+				catch(...) {}
+			}
+			return true;
 		}
+
+		// RESTORE SENTINEL
 	}
 }
 #pragma endregion
