@@ -485,6 +485,41 @@ namespace Nilesoft
 				return th;
 			}
 
+			struct SemanticPalette
+			{
+				Color background;
+				Color border;
+				Color separator;
+				state_t text;
+				state_t item;
+			};
+
+			static SemanticPalette ModernPalette(bool dark, bool transparent)
+			{
+				if(dark)
+				{
+					if(transparent)
+					{
+						return { 0x002C2C2C, 0x402C2C2C, 0x15FFFFFF,
+							{ 0xFFFFFFFF, 0xFFFFFFFF, 0x80FFFFFF, 0x80FFFFFF },
+							{ 0x00000000, 0x10FFFFFF, 0x00000000, 0x05FFFFFF } };
+					}
+					return { 0xFF2C2C2C, 0xFF2C2C2C, 0xFF3D3D3D,
+						{ 0xFFFFFFFF, 0xFFFFFFFF, 0x80FFFFFF, 0x80FFFFFF },
+						{ 0xFF2C2C2C, 0xFF383838, 0xFF2C2C2C, 0xFF2C2C2C } };
+				}
+
+				if(transparent)
+				{
+					return { 0x00F9F9F9, 0xFFF9F9F9, 0x15000000,
+						{ 0xFF000000, 0xFF000000, 0x80000000, 0x80000000 },
+						{ 0x00000000, 0x08000000, 0x00000000, 0x05000000 } };
+				}
+				return { 0xFFF9F9F9, 0xFFF9F9F9, 0xFFEAEAEA,
+					{ 0xFF000000, 0xFF000000, 0x80000000, 0x80000000 },
+					{ 0xFFF9F9F9, 0xFFF0F0F0, 0xFFF9F9F9, 0xFFF9F9F9 } };
+			}
+
 			static auto Modern(auto type = ThemeType::Light, uint8_t mode = 0, uint8_t enableTransparency = 0)
 			{
 				auto th = Default(type, mode);
@@ -508,52 +543,20 @@ namespace Nilesoft
 				th.shadow.offset = 2;
 				th.shadow.color = 0x80000000;
 
-				if(mode)
-				{
-					th.shadow.color.a = 0x20;
-					th.border.color = 0xFF2C2C2C;
-					th.background.color = 0xFF2C2C2C;
-					//th.text.color = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFF6D6D6D, 0xFF6D6D6D };
-					th.text.color = { 0xFFFFFFFF, 0xFFFFFFFF, 0x80FFFFFF, 0x80FFFFFF };
+				const auto palette = ModernPalette(mode != 0, enableTransparency != 0);
+				th.shadow.color.a = mode ? 0x20 : 0x10;
+				th.background.color = palette.background;
+				th.border.color = palette.border;
+				th.separator.color = palette.separator;
+				th.text.color = palette.text;
+				th.back.color = palette.item;
 
-					if(enableTransparency)
-					{
+				if(enableTransparency)
+				{
+					if(mode)
 						th.border.size = 1;
-						th.border.color = th.background.color;
-						th.border.color.a = 0x40;
-						th.background.color.a = 0x00;
-						th.background.tintcolor = th.background.color;
-						th.background.tintcolor.a = 0x40;
-						th.back.color = { 0x00000000, 0x10FFFFFF, 0x00000000, 0x05FFFFFF };
-						th.separator.color = 0x15FFFFFF;
-					}
-					else
-					{
-						th.separator.color = 0xFF3D3D3D;
-						th.back.color = { 0xFF2C2C2C, 0xFF383838, 0xFF2C2C2C, 0xFF2C2C2C };
-					}
-				}
-				else
-				{
-					th.shadow.color.a = 0x10;
-					th.border.color = 0xFFF9F9F9;
-					th.separator.color = 0xFFEAEAEA;
-					//th.text.color = { 0xFF000000, 0xFF000000, 0xFF9F9F9F, 0xFF9F9F9F };
-					th.text.color = { 0xFF000000, 0xFF000000, 0x80000000, 0x80000000 };
-
-					if(enableTransparency)
-					{
-						th.background.color.a = 0x00;
-						th.background.tintcolor = th.background.color;
-						th.background.tintcolor.a = 0xCF;
-						th.back.color = { 0x00000000, 0x08000000, 0x00000000, 0x05000000 };
-						th.separator.color = 0x15000000;
-					}
-					else
-					{
-						th.background.color = 0xFFF9F9F9;
-						th.back.color = { 0xFFF9F9F9, 0xFFF0F0F0, 0xFFF9F9F9, 0xFFF9F9F9 };
-					}
+					th.background.tintcolor = mode ? 0xFF2C2C2C : 0xFFF9F9F9;
+					th.background.tintcolor.a = mode ? 0x40 : 0xCF;
 				}
 
 				th.set_symbols_as_text(mode);
