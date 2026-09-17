@@ -520,27 +520,44 @@ namespace Nilesoft
 					{ 0xFFF9F9F9, 0xFFF0F0F0, 0xFFF9F9F9, 0xFFF9F9F9 } };
 			}
 
+			struct ModernMetrics
+			{
+				uint8_t menuRadius = 8;
+				uint8_t itemRadius = 4;
+				uint8_t separatorSize = 1;
+				Margin borderPadding = { 0, 4, 0, 4 };
+				Margin separatorMargin = { 0, 4, 0, 4 };
+				Margin itemPadding = { 10, 4, 10, 4 };
+				Margin itemMargin = { 4, 0, 4, 0 };
+				Margin tipPadding = { 10, 10, 10, 10 };
+				uint8_t tipRadius = 4;
+				uint8_t shadowSize = 3;
+				uint8_t shadowOffset = 2;
+			};
+
+			inline static constexpr ModernMetrics modernMetrics{};
+
 			static auto Modern(auto type = ThemeType::Light, uint8_t mode = 0, uint8_t enableTransparency = 0)
 			{
 				auto th = Default(type, mode);
 
-				th.border.radius = 8;
+				th.border.radius = modernMetrics.menuRadius;
 				th.border.size = 0;
-				th.border.padding = { 0, 4, 0, 4 };
-				th.separator.size = 1;
-				th.separator.margin = { 0, 4, 0, 4 };
+				th.border.padding = modernMetrics.borderPadding;
+				th.separator.size = modernMetrics.separatorSize;
+				th.separator.margin = modernMetrics.separatorMargin;
 				th.text.size = 14;
-				th.back.padding = { 10, 4, 10, 4 };
-				th.back.margin = { 4, 0, 4, 0 };
-				th.back.radius = 4;
+				th.back.padding = modernMetrics.itemPadding;
+				th.back.margin = modernMetrics.itemMargin;
+				th.back.radius = modernMetrics.itemRadius;
 				
-				th.tip.padding = { 10,10,10,10 };
-				th.tip.radius = 4;
+				th.tip.padding = modernMetrics.tipPadding;
+				th.tip.radius = modernMetrics.tipRadius;
 
 				th.border.color.opacity(10);
 
-				th.shadow.size = 3;
-				th.shadow.offset = 2;
+				th.shadow.size = modernMetrics.shadowSize;
+				th.shadow.offset = modernMetrics.shadowOffset;
 				th.shadow.color = 0x80000000;
 
 				const auto palette = ModernPalette(mode != 0, enableTransparency != 0);
