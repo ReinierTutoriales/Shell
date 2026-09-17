@@ -1,4 +1,4 @@
-﻿#include <pch.h>
+#include <pch.h>
 #include "Include/ContextMenu.h"
 #include "Library/detours.h"
 #include "RegistryConfig.h"
@@ -1032,13 +1032,16 @@ BOOL APIENTRY DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID)
 				{
 					//_log.info(_loader.path);
 
-					_CoCreateInstance.Begin();
-					//_DllGetClassObject.init(hModule, "DllGetClassObject", DllGetClassObjectHook).hook();
-					_CoCreateInstance.init(::CoCreateInstance, CoCreateInstanceHook).hook();
-					//auto m = &_detours_ci[hModule];
-					//if(!m->installed())
-					//m->init(hModule, "api-ms-win-core-com-l1-1-0.dll", ::CoCreateInstance, CoCreateInstanceProc).install();
-					_CoCreateInstance.Commit();
+					if(NO_ERROR == _CoCreateInstance.Begin())
+					{
+						//_DllGetClassObject.init(hModule, "DllGetClassObject", DllGetClassObjectHook).hook();
+						_CoCreateInstance.init(::CoCreateInstance, CoCreateInstanceHook).hook();
+						//auto m = &_detours_ci[hModule];
+						//if(!m->installed())
+						//m->init(hModule, "api-ms-win-core-com-l1-1-0.dll", ::CoCreateInstance, CoCreateInstanceProc).install();
+						if(NO_ERROR != _CoCreateInstance.Commit())
+							_CoCreateInstance._installed = false;
+					}
 
 					if(!iathook_NtUserTrackPopupMenuEx.installed())
 					{
@@ -1102,12 +1105,12 @@ BOOL APIENTRY DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID)
 					taskbar_t::unhook_all();
 					//detour_NtUserTrackPopupMenuEx.uninstall(true);
 
-					if(ver->IsWindows11OrGreater())
+					if(_CoCreateInstance.is_hooked() && NO_ERROR == _CoCreateInstance.Begin())
 					{
-						_CoCreateInstance.Begin();
 						//_DllGetClassObject.unhook();
 						_CoCreateInstance.unhook();
-						_CoCreateInstance.Commit();
+						if(NO_ERROR != _CoCreateInstance.Commit())
+							_CoCreateInstance._installed = true;
 					}
 				}
 
