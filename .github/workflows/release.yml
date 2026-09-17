@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.platform }}
-    runs-on: windows-latest
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
@@ -26,10 +26,10 @@ jobs:
       BIN_PATH: D:\a\Shell\Shell\src\bin
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
       - name: Restore NuGet packages
         run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
@@ -47,7 +47,7 @@ jobs:
             Copy-Item -Destination $out -Recurse -Force
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: shell-${{ matrix.platform }}
           path: ${{ runner.temp }}\shell-${{ matrix.platform }}\*
@@ -57,10 +57,10 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: build
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Read version
         id: version
@@ -72,7 +72,7 @@ jobs:
           "version=$($match.Groups[1].Value)" >> $env:GITHUB_OUTPUT
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
