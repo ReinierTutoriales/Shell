@@ -1,0 +1,86 @@
+name: Apply runtime correctness fixes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/runtime-correctness-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply verified fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('src/dll/src/ContextMenu.cpp')
+          s = p.read_text(encoding='utf-8-sig')
+
+          replacements = [
+              (
+                  'composition.activated = ::IsCompositionActive();\n\t\t\t::DwmIsCompositionEnabled(reinterpret_cast<BOOL *>(&composition.DwmEnabled));',
+                  'composition.activated = ::IsCompositionActive();\n\t\t\tBOOL dwmEnabled = FALSE;\n\t\t\tcomposition.DwmEnabled = SUCCEEDED(::DwmIsCompositionEnabled(&dwmEnabled)) && dwmEnabled != FALSE;'
+              ),
+              (
+                  '\t\t\tfont.menu.lfHeight = dpi(font.menu.lfHeight);\n\n\t\t\t_context.font.text = font.menu.lfFaceName;',
+                  '\t\t\t_context.font.text = font.menu.lfFaceName;'
+              ),
+              (
+                  '\t\t\t_theme.system.mode = systemUsesLightTheme ? 0 : 1;\n\t\t\t_theme.isHighContrast = isHighContrast;\n\t\t\t_theme.appsUseLightTheme = appsUseLightTheme;',
+                  '\t\t\t_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);\n\t\t\t_theme.isHighContrast = isHighContrast;\n\t\t\t_theme.appsUseLightTheme = appsUseLightTheme;'
+              ),
+              (
+                  'eval_state(&th->symbol.chevron, &_theme.symbols.chevron);\n\t\t\teval_state(&th->symbol.bullet, &_theme.symbols.chevron);\n\t\t\teval_state(&th->symbol.checkmark, &_theme.symbols.chevron);',
+                  'eval_state(&th->symbol.chevron, &_theme.symbols.chevron);\n\t\t\teval_state(&th->symbol.bullet, &_theme.symbols.bullet);\n\t\t\teval_state(&th->symbol.checkmark, &_theme.symbols.checked);'
+              ),
+              (
+                  'BOOL ENABLED = TRUE;\n\t\t\t::DwmSetWindowAttribute(hWnd, DWMWA_NCRENDERING_ENABLED, &ENABLED, sizeof(BOOL));\n\t\t\t::DwmSetWindowAttribute(hWnd, DWMWA_ALLOW_NCPAINT, &ENABLED, sizeof(BOOL));\n\t\t\t::DwmSetWindowAttribute(hWnd, DWMWA_NONCLIENT_RTL_LAYOUT, &ENABLED, sizeof(BOOL));',
+                  'BOOL enabled = TRUE;\n\t\t\tBOOL rtl = is_layoutRTL ? TRUE : FALSE;\n\t\t\t::DwmSetWindowAttribute(hWnd, DWMWA_NCRENDERING_ENABLED, &enabled, sizeof(enabled));\n\t\t\t::DwmSetWindowAttribute(hWnd, DWMWA_ALLOW_NCPAINT, &enabled, sizeof(enabled));\n\t\t\t::DwmSetWindowAttribute(hWnd, DWMWA_NONCLIENT_RTL_LAYOUT, &rtl, sizeof(rtl));'
+              ),
+          ]
+
+          for old, new in replacements:
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, got {count}: {old[:80]!r}')
+              s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8-sig', newline='')
+
+          p = Path('src/dll/src/Include/Theme.h')
+          s = p.read_text(encoding='utf-8-sig')
+          old = '''\t\tstatic void Personalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)'''
+          if old not in s:
+              raise SystemExit('Theme::Personalize signature not found')
+
+          marker = old + '''\n\t\t{'''
+          replacement = marker + '''\n\t\t\tif(lpEnableTransparency) *lpEnableTransparency = false;\n\t\t\tif(lpSystemUsesLightTheme) *lpSystemUsesLightTheme = true;\n\t\t\tif(lpAppsUseLightTheme) *lpAppsUseLightTheme = true;\n\n\t\t\tif(IsHighContrast())\n\t\t\t\treturn;'''
+          if s.count(marker) != 1:
+              raise SystemExit('Unexpected Theme::Personalize body count')
+          s = s.replace(marker, replacement, 1)
+          s = s.replace('\t\t\tif(!IsHighContrast())\n\t\t\t{\n\t\t\t\tauto personalize = Registry::CurrentUser.OpenSubKey(key_personalize, false, false);', '\t\t\tauto personalize = Registry::CurrentUser.OpenSubKey(key_personalize, false, false);\n\t\t\tif(personalize)\n\t\t\t{', 1)
+          # Remove the now-redundant inner defaults; outer defaults are authoritative.
+          s = s.replace('\t\t\t\t\t*lpEnableTransparency = false;\n', '', 1)
+          s = s.replace('\t\t\t\t\t*lpSystemUsesLightTheme = true;\n', '', 1)
+          s = s.replace('\t\t\t\t\t*lpAppsUseLightTheme = true;\n', '', 1)
+          p.write_text(s, encoding='utf-8-sig', newline='')
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name 'ReinierTutoriales'
+          git config user.email '86568548+ReinierTutoriales@users.noreply.github.com'
+          git add src/dll/src/ContextMenu.cpp src/dll/src/Include/Theme.h
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: harden Windows menu runtime integration'
+          git push
