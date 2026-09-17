@@ -267,7 +267,13 @@ namespace Nilesoft::Shell
 
 		bool installed() const
 		{
-			return _thunk &&_thunk->u1.Function == _detour;
+			if(!_thunk || !_detour)
+				return false;
+			__try
+			{
+				return _thunk->u1.Function == _detour;
+			}
+			except { return false; }
 		}
 
 		template<typename T>
@@ -302,19 +308,16 @@ namespace Nilesoft::Shell
 				if(lpfunc == _thunk->u1.Function)
 					return true;
 
-				DWORD protect;
-				if(::VirtualProtect(&_thunk->u1.Function, sizeof(uintptr_t), PAGE_EXECUTE_READWRITE, &protect))
+				DWORD protect{};
+				if(::VirtualProtect(&_thunk->u1.Function, sizeof(uintptr_t), PAGE_READWRITE, &protect))
 				{
 					_thunk->u1.Function = lpfunc;
-					if(::VirtualProtect(&_thunk->u1.Function, sizeof(uintptr_t), protect, &protect))
-					{
-						if(flush)
-						{
-							//https://devblogs.microsoft.com/oldnewthing/20190902-00/?p=102828
-							::FlushInstructionCache(::GetCurrentProcess(), &_thunk->u1.Function, sizeof(ULONG_PTR));
-						}
-						return true;
-					}
+
+					DWORD ignored{};
+					const auto restored = ::VirtualProtect(&_thunk->u1.Function, sizeof(uintptr_t), protect, &ignored);
+					if(flush)
+						::FlushInstructionCache(::GetCurrentProcess(), &_thunk->u1.Function, sizeof(uintptr_t));
+					return restored != FALSE;
 				}
 			} except {}
 			return false;
