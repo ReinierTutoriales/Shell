@@ -1,4 +1,4 @@
-﻿#include <pch.h>
+#include <pch.h>
 #include "Include/Theme.h"
 #include "Include/ContextMenu.h"
 #include "Include/stb_image_write.h"
