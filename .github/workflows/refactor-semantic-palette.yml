@@ -1,0 +1,45 @@
+name: Refactor semantic theme palette
+
+on:
+  push:
+    paths:
+      - '.github/workflows/refactor-semantic-palette.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: true
+      - name: Apply exact semantic palette transform
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/dll/src/Include/Theme.h')
+          s = p.read_text(encoding='utf-8')
+
+          anchor = '''\t\t\tstatic auto Modern(auto type = ThemeType::Light, uint8_t mode = 0, uint8_t enableTransparency = 0)\n'''
+          palette = '''\t\t\tstruct SemanticPalette\n\t\t\t{\n\t\t\t\tColor background;\n\t\t\t\tColor border;\n\t\t\t\tColor separator;\n\t\t\t\tstate_t text;\n\t\t\t\tstate_t item;\n\t\t\t};\n\n\t\t\tstatic SemanticPalette ModernPalette(bool dark, bool transparent)\n\t\t\t{\n\t\t\t\tif(dark)\n\t\t\t\t{\n\t\t\t\t\tif(transparent)\n\t\t\t\t\t{\n\t\t\t\t\t\treturn { 0x002C2C2C, 0x402C2C2C, 0x15FFFFFF,\n\t\t\t\t\t\t\t{ 0xFFFFFFFF, 0xFFFFFFFF, 0x80FFFFFF, 0x80FFFFFF },\n\t\t\t\t\t\t\t{ 0x00000000, 0x10FFFFFF, 0x00000000, 0x05FFFFFF } };\n\t\t\t\t\t}\n\t\t\t\t\treturn { 0xFF2C2C2C, 0xFF2C2C2C, 0xFF3D3D3D,\n\t\t\t\t\t\t{ 0xFFFFFFFF, 0xFFFFFFFF, 0x80FFFFFF, 0x80FFFFFF },\n\t\t\t\t\t\t{ 0xFF2C2C2C, 0xFF383838, 0xFF2C2C2C, 0xFF2C2C2C } };\n\t\t\t\t}\n\n\t\t\t\tif(transparent)\n\t\t\t\t{\n\t\t\t\t\treturn { 0x00F9F9F9, 0xFFF9F9F9, 0x15000000,\n\t\t\t\t\t\t{ 0xFF000000, 0xFF000000, 0x80000000, 0x80000000 },\n\t\t\t\t\t\t{ 0x00000000, 0x08000000, 0x00000000, 0x05000000 } };\n\t\t\t\t}\n\t\t\t\treturn { 0xFFF9F9F9, 0xFFF9F9F9, 0xFFEAEAEA,\n\t\t\t\t\t{ 0xFF000000, 0xFF000000, 0x80000000, 0x80000000 },\n\t\t\t\t\t{ 0xFFF9F9F9, 0xFFF0F0F0, 0xFFF9F9F9, 0xFFF9F9F9 } };\n\t\t\t}\n\n'''
+          if s.count(anchor) != 1:
+              raise SystemExit(f'expected one Modern anchor, found {s.count(anchor)}')
+          s = s.replace(anchor, palette + anchor, 1)
+
+          old = '''\t\t\t\tif(mode)\n\t\t\t\t{\n\t\t\t\t\tth.shadow.color.a = 0x20;\n\t\t\t\t\tth.border.color = 0xFF2C2C2C;\n\t\t\t\t\tth.background.color = 0xFF2C2C2C;\n\t\t\t\t\t//th.text.color = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFF6D6D6D, 0xFF6D6D6D };\n\t\t\t\t\tth.text.color = { 0xFFFFFFFF, 0xFFFFFFFF, 0x80FFFFFF, 0x80FFFFFF };\n\n\t\t\t\t\tif(enableTransparency)\n\t\t\t\t\t{\n\t\t\t\t\t\tth.border.size = 1;\n\t\t\t\t\t\tth.border.color = th.background.color;\n\t\t\t\t\t\tth.border.color.a = 0x40;\n\t\t\t\t\t\tth.background.color.a = 0x00;\n\t\t\t\t\t\tth.background.tintcolor = th.background.color;\n\t\t\t\t\t\tth.background.tintcolor.a = 0x40;\n\t\t\t\t\t\tth.back.color = { 0x00000000, 0x10FFFFFF, 0x00000000, 0x05FFFFFF };\n\t\t\t\t\t\tth.separator.color = 0x15FFFFFF;\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tth.separator.color = 0xFF3D3D3D;\n\t\t\t\t\t\tth.back.color = { 0xFF2C2C2C, 0xFF383838, 0xFF2C2C2C, 0xFF2C2C2C };\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\tth.shadow.color.a = 0x10;\n\t\t\t\t\tth.border.color = 0xFFF9F9F9;\n\t\t\t\t\tth.separator.color = 0xFFEAEAEA;\n\t\t\t\t\t//th.text.color = { 0xFF000000, 0xFF000000, 0xFF9F9F9F, 0xFF9F9F9F };\n\t\t\t\t\tth.text.color = { 0xFF000000, 0xFF000000, 0x80000000, 0x80000000 };\n\n\t\t\t\t\tif(enableTransparency)\n\t\t\t\t\t{\n\t\t\t\t\t\tth.background.color.a = 0x00;\n\t\t\t\t\t\tth.background.tintcolor = th.background.color;\n\t\t\t\t\t\tth.background.tintcolor.a = 0xCF;\n\t\t\t\t\t\tth.back.color = { 0x00000000, 0x08000000, 0x00000000, 0x05000000 };\n\t\t\t\t\t\tth.separator.color = 0x15000000;\n\t\t\t\t\t}\n\t\t\t\t\telse\n\t\t\t\t\t{\n\t\t\t\t\t\tth.background.color = 0xFFF9F9F9;\n\t\t\t\t\t\tth.back.color = { 0xFFF9F9F9, 0xFFF0F0F0, 0xFFF9F9F9, 0xFFF9F9F9 };\n\t\t\t\t\t}\n\t\t\t\t}\n'''
+          new = '''\t\t\t\tconst auto palette = ModernPalette(mode != 0, enableTransparency != 0);\n\t\t\t\tth.shadow.color.a = mode ? 0x20 : 0x10;\n\t\t\t\tth.background.color = palette.background;\n\t\t\t\tth.border.color = palette.border;\n\t\t\t\tth.separator.color = palette.separator;\n\t\t\t\tth.text.color = palette.text;\n\t\t\t\tth.back.color = palette.item;\n\n\t\t\t\tif(enableTransparency)\n\t\t\t\t{\n\t\t\t\t\tif(mode)\n\t\t\t\t\t\tth.border.size = 1;\n\t\t\t\t\tth.background.tintcolor = mode ? 0xFF2C2C2C : 0xFFF9F9F9;\n\t\t\t\t\tth.background.tintcolor.a = mode ? 0x40 : 0xCF;\n\t\t\t\t}\n'''
+          if s.count(old) != 1:
+              raise SystemExit(f'expected one Modern palette block, found {s.count(old)}')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8', newline='')
+      - name: Commit transform
+        shell: bash
+        run: |
+          git config user.name "ReinierTutoriales"
+          git config user.email "86568548+ReinierTutoriales@users.noreply.github.com"
+          git add src/dll/src/Include/Theme.h
+          git diff --cached --check
+          git commit -m "refactor(theme): centralize semantic modern palette"
+          git push origin HEAD:main
