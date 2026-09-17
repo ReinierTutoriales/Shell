@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "System/Diagnostics/Process.h"
 
 namespace Nilesoft
@@ -398,9 +398,9 @@ namespace Nilesoft
 					string params, cmd = sys_path;
 					cmd +=  L"\\cmd.exe";
 					params.format(L"/c taskkill /f /im explorer.exe && start %s\\explorer", win_path);
-					::ShellExecuteW(nullptr, nullptr, cmd, params, nullptr, SW_HIDE);
-					//WinExec("taskkill /f /im explorer.exe && start explorer.exe", SW_HIDE);
-					return res > 0;
+					const auto result = ::ShellExecuteW(nullptr, nullptr, cmd, params, nullptr, SW_HIDE);
+					// ShellExecute returns a value greater than 32 on success.
+					return reinterpret_cast<INT_PTR>(result) > 32;
 				}
 
 				for(auto &process : Nilesoft::Diagnostics::Process::EnumInfo())
