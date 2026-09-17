@@ -1,0 +1,36 @@
+name: Fix detached hook thread
+on:
+  push:
+    paths: ['.github/workflows/fix-detached-hook-thread.yml']
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: {fetch-depth: 0}
+      - name: Remove unsafe delayed detached callback
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/dll/src/Main.cpp')
+          s=p.read_text(encoding='utf-8-sig')
+          old='''\t\t\t\t\tif(!iathook_NtUserTrackPopupMenuEx.installed())\n\t\t\t\t\t{\n\t\t\t\t\t\tstd::thread([=]() { ::Sleep(2000); hook(); }).detach();\n\t\t\t\t\t}\n'''
+          new='''\t\t\t\t\tif(!iathook_NtUserTrackPopupMenuEx.installed())\n\t\t\t\t\t\thook();\n'''
+          if s.count(old)!=1: raise SystemExit(f'delayed hook block count={s.count(old)}')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git diff --check
+          git diff -- src/dll/src/Main.cpp
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/dll/src/Main.cpp
+          git commit -m 'fix: remove unsafe detached hook callback'
+          git pull --rebase origin main
+          git push origin HEAD:main
