@@ -1,0 +1,46 @@
+name: Wire theme system state
+
+on:
+  push:
+    paths:
+      - '.github/workflows/wire-theme-system-state.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: true
+      - name: Apply exact ContextMenu transform
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/dll/src/ContextMenu.cpp')
+          s = p.read_text(encoding='utf-8')
+
+          old1 = '''\t\t\tauto isHighContrast = Theme::IsHighContrast();\n'''
+          new1 = '''\t\t\tconst auto systemState = Theme::CaptureSystemState();\n\t\t\tauto isHighContrast = systemState.highContrast;\n'''
+          if s.count(old1) != 1:
+              raise SystemExit(f'expected one high-contrast anchor, found {s.count(old1)}')
+          s = s.replace(old1, new1, 1)
+
+          old2 = '''\t\t\tbool enableTransparency = false;\n\t\t\tbool systemUsesLightTheme = true;\n\t\t\tbool appsUseLightTheme = true;\n\n\t\t\tif(isHighContrast)\n\t\t\t\t_theme.system.mode = 2;\n\t\t\telse\n\t\t\t{\n\t\t\t\tTheme::Personalize(&systemUsesLightTheme, &appsUseLightTheme, &enableTransparency);\n\t\t\t\t_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);\n\t\t\t}\n\n\t\t\t_theme.enableTransparency = enableTransparency;\n\t\t\t_theme.systemUsesLightTheme = systemUsesLightTheme;\n\t\t\t_theme.appsUseLightTheme = appsUseLightTheme;\n\t\t\t_theme.isHighContrast = isHighContrast;\n\t\t\t\n'''
+          new2 = '''\t\t\tbool enableTransparency = systemState.transparency;\n\t\t\tbool systemUsesLightTheme = systemState.systemUsesLightTheme;\n\t\t\tbool appsUseLightTheme = systemState.appsUseLightTheme;\n\n\t\t\t_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);\n\n'''
+          if s.count(old2) != 1:
+              raise SystemExit(f'expected one personalize block, found {s.count(old2)}')
+          s = s.replace(old2, new2, 1)
+
+          p.write_text(s, encoding='utf-8', newline='')
+      - name: Commit transform
+        shell: bash
+        run: |
+          git config user.name "ReinierTutoriales"
+          git config user.email "86568548+ReinierTutoriales@users.noreply.github.com"
+          git add src/dll/src/ContextMenu.cpp
+          git diff --cached --check
+          git commit -m "refactor(theme): consume Windows system-state snapshot"
+          git push origin HEAD:main
