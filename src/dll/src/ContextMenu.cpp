@@ -3771,7 +3771,7 @@ namespace Nilesoft
 			}
 			
 			// Resolve Windows-owned vertical menu spacing only after the final font.
-			if((_theme.type == ThemeType::System || _theme.type == ThemeType::Auto) && !_theme.isHighContrast)
+			if((_theme.Type == ThemeType::System || _theme.Type == ThemeType::Auto) && !_theme.isHighContrast)
 			{
 				const auto menuHeight = ::GetSystemMetricsForDpi(SM_CYMENU, dpi.val);
 				const auto fontHeight = std::abs(_theme.font.lfHeight);
