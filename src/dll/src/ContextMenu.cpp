@@ -5023,7 +5023,7 @@ if(__font.name.is_string())
 				// Context menus are transient surfaces. Prefer the documented Windows 11
 				// system backdrop when Windows composition/transparency policy allows it.
 				// NSS effects continue to be resolved by the existing theme pipeline.
-				if(ver->build() >= 22621 && !_theme.isHighContrast && _theme.enableTransparency)
+				if(ver->Build >= 22621 && !_theme.isHighContrast && _theme.enableTransparency)
 				{
 					systemBackdropApplied = SUCCEEDED(DWM(hWnd).SetBackdropType(DWM::BackdropType::TransientWindow));
 				}
