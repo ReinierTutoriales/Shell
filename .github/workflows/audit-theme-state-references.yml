@@ -1,0 +1,29 @@
+name: Audit theme state references
+
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-theme-state-references.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Audit production references
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== IsDarkMode ==='
+          git grep -n -F 'IsDarkMode(' -- src || true
+          echo '=== Personalize ==='
+          git grep -n -F 'Personalize(' -- src || true
+          echo '=== ReadPersonalize ==='
+          git grep -n -F 'ReadPersonalize(' -- src || true
+          echo '=== CaptureSystemState ==='
+          git grep -n -F 'CaptureSystemState(' -- src || true
