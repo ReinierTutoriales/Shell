@@ -204,8 +204,8 @@ namespace Nilesoft::Shell
 
 		~IATHook()
 		{
-			uninstall(true);
-			// free when use GetModuleHandleExW
+			uninstall();
+			// init() acquires a module reference with GetModuleHandleExW.
 			if(_hModule) ::FreeLibrary(_hModule);
 		}
 
@@ -254,6 +254,8 @@ namespace Nilesoft::Shell
 
 			if(cleare)
 			{
+				// Release the reference acquired by GetModuleHandleExW before clearing state.
+				if(_hModule) ::FreeLibrary(_hModule);
 				_hModule = {};
 				_import = {};
 				_orignal = {};
