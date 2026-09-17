@@ -1,0 +1,41 @@
+name: Refactor theme personalize snapshot
+
+on:
+  push:
+    paths:
+      - '.github/workflows/refactor-theme-personalize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: true
+      - name: Apply exact Theme transform
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/dll/src/Include/Theme.h')
+          s = p.read_text(encoding='utf-8')
+
+          old = '''\t\t\tstatic void Personalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)\n\t\t\t{\n\t\t\tif(lpEnableTransparency) *lpEnableTransparency = false;\n\t\t\tif(lpSystemUsesLightTheme) *lpSystemUsesLightTheme = true;\n\t\t\tif(lpAppsUseLightTheme) *lpAppsUseLightTheme = true;\n\t\t\t\tstatic constexpr auto enableTransparency = L"EnableTransparency";\n\t\t\t\t//Windows 10 build 10074\n\t\t\t\tstatic constexpr auto systemUsesLightTheme = L"SystemUsesLightTheme";\n\t\t\t\t//Windows 10 build 1809\n\t\t\t\tconstexpr auto appsUseLightTheme = L"AppsUseLightTheme";\n\n\t\t\t\tif(!IsHighContrast())\n\t\t\t\t{\n\t\t\t\t\tauto personalize = Registry::CurrentUser.OpenSubKey(key_personalize, false, false);\n\t\t\t\t\tif(personalize)\n\t\t\t\t\t{\n\t\t\t\t\t\tif(lpEnableTransparency)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t*lpEnableTransparency = false;\n\t\t\t\t\t\t\tif(personalize.ExistsValue(enableTransparency))\n\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\t*lpEnableTransparency = static_cast<bool>(personalize.GetDWord(enableTransparency));\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t//Windows 10 build 10074\n\t\t\t\t\t\tif(lpSystemUsesLightTheme)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t*lpSystemUsesLightTheme = true;\n\t\t\t\t\t\t\tif(personalize.ExistsValue(systemUsesLightTheme))\n\t\t\t\t\t\t\t\t*lpSystemUsesLightTheme = static_cast<bool>(personalize.GetDWord(systemUsesLightTheme));\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t//Windows 10 build 1809\n\t\t\t\t\t\tif(lpAppsUseLightTheme)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t*lpAppsUseLightTheme = true;\n\t\t\t\t\t\t\tif(personalize.ExistsValue(appsUseLightTheme))\n\t\t\t\t\t\t\t\t*lpAppsUseLightTheme = static_cast<bool>(personalize.GetDWord(appsUseLightTheme));\n\t\t\t\t\t\t}\n\t\t\t\t\t\tpersonalize.Close();\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tstatic SystemState CaptureSystemState()\n\t\t\t{\n\t\t\t\tSystemState state;\n\t\t\t\tstate.highContrast = IsHighContrast();\n\t\t\t\tif(!state.highContrast)\n\t\t\t\t{\n\t\t\t\t\tPersonalize(&state.systemUsesLightTheme,\n\t\t\t\t\t\t\t\t&state.appsUseLightTheme,\n\t\t\t\t\t\t\t\t&state.transparency);\n\t\t\t\t}\n\t\t\t\treturn state;\n\t\t\t}\n'''
+
+          new = '''\t\t\tstatic void ReadPersonalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)\n\t\t\t{\n\t\t\t\tif(lpEnableTransparency) *lpEnableTransparency = false;\n\t\t\t\tif(lpSystemUsesLightTheme) *lpSystemUsesLightTheme = true;\n\t\t\t\tif(lpAppsUseLightTheme) *lpAppsUseLightTheme = true;\n\t\t\t\tstatic constexpr auto enableTransparency = L"EnableTransparency";\n\t\t\t\tstatic constexpr auto systemUsesLightTheme = L"SystemUsesLightTheme";\n\t\t\t\tconstexpr auto appsUseLightTheme = L"AppsUseLightTheme";\n\n\t\t\t\tauto personalize = Registry::CurrentUser.OpenSubKey(key_personalize, false, false);\n\t\t\t\tif(personalize)\n\t\t\t\t{\n\t\t\t\t\tif(lpEnableTransparency && personalize.ExistsValue(enableTransparency))\n\t\t\t\t\t\t*lpEnableTransparency = static_cast<bool>(personalize.GetDWord(enableTransparency));\n\n\t\t\t\t\tif(lpSystemUsesLightTheme && personalize.ExistsValue(systemUsesLightTheme))\n\t\t\t\t\t\t*lpSystemUsesLightTheme = static_cast<bool>(personalize.GetDWord(systemUsesLightTheme));\n\n\t\t\t\t\tif(lpAppsUseLightTheme && personalize.ExistsValue(appsUseLightTheme))\n\t\t\t\t\t\t*lpAppsUseLightTheme = static_cast<bool>(personalize.GetDWord(appsUseLightTheme));\n\n\t\t\t\t\tpersonalize.Close();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tstatic void Personalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)\n\t\t\t{\n\t\t\t\tif(IsHighContrast())\n\t\t\t\t{\n\t\t\t\t\tif(lpEnableTransparency) *lpEnableTransparency = false;\n\t\t\t\t\tif(lpSystemUsesLightTheme) *lpSystemUsesLightTheme = true;\n\t\t\t\t\tif(lpAppsUseLightTheme) *lpAppsUseLightTheme = true;\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tReadPersonalize(lpSystemUsesLightTheme, lpAppsUseLightTheme, lpEnableTransparency);\n\t\t\t}\n\n\t\t\tstatic SystemState CaptureSystemState()\n\t\t\t{\n\t\t\t\tSystemState state;\n\t\t\t\tstate.highContrast = IsHighContrast();\n\t\t\t\tif(!state.highContrast)\n\t\t\t\t{\n\t\t\t\t\tReadPersonalize(&state.systemUsesLightTheme,\n\t\t\t\t\t\t\t\t&state.appsUseLightTheme,\n\t\t\t\t\t\t\t\t&state.transparency);\n\t\t\t\t}\n\t\t\t\treturn state;\n\t\t\t}\n'''
+
+          if s.count(old) != 1:
+              raise SystemExit(f'expected one Personalize block, found {s.count(old)}')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8', newline='')
+      - name: Commit transform
+        shell: bash
+        run: |
+          git config user.name "ReinierTutoriales"
+          git config user.email "86568548+ReinierTutoriales@users.noreply.github.com"
+          git add src/dll/src/Include/Theme.h
+          git diff --cached --check
+          git commit -m "refactor(theme): avoid duplicate high-contrast query"
+          git push origin HEAD:main
