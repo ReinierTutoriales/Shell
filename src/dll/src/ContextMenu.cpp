@@ -3664,8 +3664,8 @@ namespace Nilesoft
 				}
 			}
 
-			_theme.text.tap = dpi.value<int8_t>(_theme.text.tap);
-
+			// Theme::scale() owns DPI conversion for text.tap. Scaling here as well
+			// made the tap target grow twice on monitors above 100% DPI.
 			long font_size = -1;
 
 			struct {
