@@ -375,17 +375,17 @@ namespace Nilesoft
 					render->BeginDraw();
 			}
 
-			void begin(HDC hdc, const Rect rect)
+			bool begin(HDC hdc, const Rect rect)
 			{
-				if(init_res())
-				{
-					bind(hdc, rect);
-					//if(SUCCEEDED())
-					{
-						
-						render->BeginDraw();
-					}
-				}
+				if(!init_res())
+					return false;
+
+				const HRESULT hr = bind(hdc, rect);
+				if(FAILED(hr) || !render || !brush)
+					return false;
+
+				render->BeginDraw();
+				return true;
 			}
 
 			HRESULT end(bool reset = false)
