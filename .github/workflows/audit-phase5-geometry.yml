@@ -1,0 +1,24 @@
+name: Audit phase 5 geometry
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-phase5-geometry.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Map geometry and scaling consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== image scale ==='
+          grep -RInE 'image\.scale|_theme\.image\.size|image_size' src/dll/src | head -n 500 || true
+          echo '=== separator geometry ==='
+          grep -RInE '_theme\.separator\.(size|margin)|MENU_POPUPSEPARATOR|TMT_BORDERSIZE' src/dll/src | head -n 400 || true
+          echo '=== symbol geometry ==='
+          grep -RInE 'symbol\.(chevron|checked|bullet)\.size|symbols\.(chevron|checked|bullet)' src/dll/src | head -n 400 || true
+          echo '=== dpi literals in menu renderer ==='
+          grep -nE 'dpi\([0-9]+\)|[+\-] [0-9]+;' src/dll/src/ContextMenu.cpp | head -n 500 || true
