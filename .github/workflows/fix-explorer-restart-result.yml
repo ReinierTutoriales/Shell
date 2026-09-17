@@ -1,0 +1,35 @@
+name: Fix Explorer restart result
+on:
+  push:
+    paths: ['.github/workflows/fix-explorer-restart-result.yml']
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: {fetch-depth: 0}
+      - name: Fix ShellExecute result handling
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/shared/System/Windows/Windows.h')
+          s=p.read_text(encoding='utf-8-sig')
+          old='''\t\t\t\t\t::ShellExecuteW(nullptr, nullptr, cmd, params, nullptr, SW_HIDE);\n\t\t\t\t\t//WinExec("taskkill /f /im explorer.exe && start explorer.exe", SW_HIDE);\n\t\t\t\t\treturn res > 0;\n'''
+          new='''\t\t\t\t\tconst auto result = ::ShellExecuteW(nullptr, nullptr, cmd, params, nullptr, SW_HIDE);\n\t\t\t\t\t// ShellExecute returns a value greater than 32 on success.\n\t\t\t\t\treturn reinterpret_cast<INT_PTR>(result) > 32;\n'''
+          if s.count(old)!=1: raise SystemExit(f'restart block count={s.count(old)}')
+          p.write_text(s.replace(old,new,1),encoding='utf-8',newline='')
+          PY
+          git diff --check
+          git diff -- src/shared/System/Windows/Windows.h
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/shared/System/Windows/Windows.h
+          git commit -m 'fix: report Explorer restart launch result'
+          git pull --rebase origin main
+          git push origin HEAD:main
