@@ -2485,8 +2485,10 @@ namespace Nilesoft
 			
 			if(mi->itemID == 0x5ffffffe)
 			{
-				mi->itemWidth = 260;
-				mi->itemHeight = 50;
+				// This owner-measured sentinel participates in the same device-pixel
+				// layout as the rest of the popup; keep its 96-DPI baseline scalable.
+				mi->itemWidth = dpi(260u);
+				mi->itemHeight = dpi(50u);
 			}
 			else if(mi->itemID == MF_NOITEM)
 			{
