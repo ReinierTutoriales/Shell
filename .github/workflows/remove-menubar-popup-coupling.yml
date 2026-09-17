@@ -1,0 +1,32 @@
+name: Popup spacing semantics correction
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/remove-menubar-popup-coupling.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - shell: python
+        run: |
+          from pathlib import Path
+          p=Path('src/dll/src/ContextMenu.cpp')
+          s=p.read_text(encoding='utf-8')
+          old='''\t\t\t// Resolve Windows-owned vertical menu spacing only after the final font.\n\t\t\tif((_theme.Type == ThemeType::System || _theme.Type == ThemeType::Auto) && !_theme.isHighContrast)\n\t\t\t{\n\t\t\t\tconst auto menuHeight = ::GetSystemMetricsForDpi(SM_CYMENU, dpi.val);\n\t\t\t\tconst auto fontHeight = std::abs(_theme.font.lfHeight);\n\t\t\t\tif(menuHeight > 0 && fontHeight > 0)\n\t\t\t\t{\n\t\t\t\t\tconst auto space = (std::max)(0L, static_cast<long>(menuHeight) - fontHeight);\n\t\t\t\t\t_theme.back.padding.top = space / 2;\n\t\t\t\t\t_theme.back.padding.bottom = space - _theme.back.padding.top;\n\t\t\t\t}\n\t\t\t}\n\n'''
+          if s.count(old)!=1: raise SystemExit('popup spacing block mismatch')
+          p.write_text(s.replace(old,'',1),encoding='utf-8',newline='')
+      - shell: bash
+        run: |
+          git diff --check
+          ! grep -Fq 'GetSystemMetricsForDpi(SM_CYMENU' src/dll/src/ContextMenu.cpp
+          git config user.name ReinierTutoriales
+          git config user.email 86568548+ReinierTutoriales@users.noreply.github.com
+          git add src/dll/src/ContextMenu.cpp
+          git commit -m 'fix: stop using menu-bar height for popup spacing'
+          git push
