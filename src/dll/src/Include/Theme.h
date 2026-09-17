@@ -130,6 +130,14 @@ namespace Nilesoft
 				Color color;
 			};
 
+			struct SystemState
+			{
+				bool highContrast{};
+				bool transparency{};
+				bool systemUsesLightTheme = true;
+				bool appsUseLightTheme = true;
+			};
+
 			struct {
 				bool enabled{};
 				double linear[5]{};
@@ -898,6 +906,19 @@ namespace Nilesoft
 						personalize.Close();
 					}
 				}
+			}
+
+			static SystemState CaptureSystemState()
+			{
+				SystemState state;
+				state.highContrast = IsHighContrast();
+				if(!state.highContrast)
+				{
+					Personalize(&state.systemUsesLightTheme,
+								&state.appsUseLightTheme,
+								&state.transparency);
+				}
+				return state;
 			}
 
 			static bool SystemParameters(uint32_t uiAction, uint32_t uiParam, void* pvParam, uint32_t fWinIni, uint32_t dpi = 96, bool skip_dpi = false)
