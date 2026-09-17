@@ -1,0 +1,36 @@
+name: Audit menu metrics
+on:
+  push:
+    paths: ['.github/workflows/audit-menu-metrics.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Inspect menu measurement and DPI paths
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          needles=(
+            'WM_MEASUREITEM','MEASUREITEMSTRUCT','itemHeight','itemWidth','GetFont(',
+            'GetDpi(','dpi(','padding','radius','separator','icon_size','iconSize',
+            'SM_CXMENUCHECK','SM_CYMENUCHECK','SM_CYMENU','NONCLIENTMETRICS','lfMenuFont'
+          )
+          roots=[Path('src/dll/src/ContextMenu.cpp'),Path('src/dll/src/Include/Theme.h'),Path('src/dll/src/Include/Menu.h'),Path('src/dll/src/Include/MenuItem.h'),Path('src/dll/src/Include/ContextMenu.h')]
+          rows=[]
+          for p in roots:
+            if not p.exists(): continue
+            lines=p.read_text(encoding='utf-8-sig',errors='replace').splitlines()
+            for i,line in enumerate(lines,1):
+              lo=line.lower()
+              if any(n.lower() in lo for n in needles):
+                a=max(1,i-2); b=min(len(lines),i+2)
+                rows.append(f'--- {p}:{a}-{b}')
+                rows.extend(f'{j}: {lines[j-1]}' for j in range(a,b+1))
+          print('\n'.join(rows))
+          PY
