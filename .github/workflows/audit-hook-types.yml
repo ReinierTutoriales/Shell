@@ -1,0 +1,23 @@
+name: Audit low-level hook type consumers
+on:
+  push:
+    paths: ['.github/workflows/audit-hook-types.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Enumerate hook declarations and consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== class/struct declarations in Hooker.h ==='
+          grep -nE '^([[:space:]]*)(class|struct)[[:space:]]+[A-Za-z_][A-Za-z0-9_]*' src/dll/src/Include/Hooker.h || true
+          echo '=== IATHook consumers ==='
+          grep -RIn --exclude-dir=.git --exclude='Hooker.h' -F 'IATHook' src || true
+          echo '=== Hook consumers excluding declaration header ==='
+          grep -RIn --exclude-dir=.git --exclude='Hooker.h' -E '\bHook\b|\.hook\(|\.unhook\(|\.callnext\(' src/dll/src || true
+          echo '=== suspicious memory patch primitives outside Hooker/detours ==='
+          grep -RIn --exclude-dir=.git --exclude='Hooker.h' --exclude='detours.cpp' -E 'VirtualProtect|WriteProcessMemory|CreateRemoteThread|FlushInstructionCache|IMAGE_DIRECTORY_ENTRY_IMPORT' src || true
