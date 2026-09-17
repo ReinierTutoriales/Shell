@@ -640,10 +640,9 @@ namespace Nilesoft
 					if(!enableTransparency)
 					{
 						th.border.color.opacity(10);
-						th.background.color = 0xFF2C2C2C;
-						th.separator.color = 0xFF3D3D3D;
-						th.text.color = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFF6D6D6D, 0xFF6D6D6D };
-						th.back.color = { 0xFF2C2C2C, 0xFF383838, 0xFF2C2C2C, 0xFF2C2C2C };
+						// Preserve the explicit Dark theme's stronger disabled-text contrast.
+						th.text.color.nor_dis = 0xFF6D6D6D;
+						th.text.color.sel_dis = 0xFF6D6D6D;
 					}
 				}
 				else if(isw11)
