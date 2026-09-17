@@ -1,0 +1,41 @@
+name: Submenu width DPI correction
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-phase5-submenu-width-dpi.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Correct submenu width compensation DPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/dll/src/ContextMenu.cpp')
+          s = p.read_text(encoding='utf-8')
+          old = "\t\t\t\t\t\t// Remove extra space 'Submenu icon size'\n\t\t\t\t\t\tmi->itemWidth -= dpi.original(14);"
+          new = "\t\t\t\t\t\t// The submenu slot is device-pixel geometry; compensate it at the\n\t\t\t\t\t\t// active menu DPI instead of subtracting a fixed 96-DPI width.\n\t\t\t\t\t\tmi->itemWidth -= dpi(14);"
+          if s.count(old) != 1:
+              raise SystemExit(f'expected exactly one submenu width compensation, found {s.count(old)}')
+          s = s.replace(old, new)
+          p.write_text(s, encoding='utf-8', newline='')
+          PY
+          test "$(grep -c 'itemWidth -= dpi.original(14)' src/dll/src/ContextMenu.cpp || true)" -eq 0
+          test "$(grep -c 'itemWidth -= dpi(14)' src/dll/src/ContextMenu.cpp)" -eq 1
+          git diff --check
+      - name: Commit production fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/dll/src/ContextMenu.cpp
+          git commit -m 'fix: scale submenu width compensation with DPI'
+          git push origin HEAD:main
