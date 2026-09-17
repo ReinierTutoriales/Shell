@@ -1,0 +1,22 @@
+name: Audit registry and loading
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-registry-loading.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Audit registry writes and dynamic loading
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== registry writes ==='
+          grep -RIn --exclude-dir=.git -E 'Reg(Create|Set|Delete|Open)Key|RegSetValue|RegDeleteValue|\.SetValue\(|\.DeleteValue\(|Registry::.*(Set|Write|Delete|Create)' src --exclude='detours.cpp' | head -n 500 || true
+          echo '=== dynamic loading ==='
+          grep -RIn --exclude-dir=.git -E 'LoadLibrary(Ex)?[AW]?\(|GetProcAddress\(|LdrLoadDll|Windows\.UI\.FileExplorer\.dll' src --exclude='detours.cpp' | head -n 500 || true
+          echo '=== COM registration / shell extension ==='
+          grep -RIn --exclude-dir=.git -E 'DllRegisterServer|DllUnregisterServer|CLSID|InprocServer32|CoCreateInstance|CoRegisterClassObject' src --exclude='detours.cpp' | head -n 500 || true
