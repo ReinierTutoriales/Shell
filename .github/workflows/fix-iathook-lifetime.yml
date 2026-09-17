@@ -1,0 +1,43 @@
+name: Fix IAT hook lifetime
+on:
+  push:
+    paths: ['.github/workflows/fix-iathook-lifetime.yml']
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fix IATHook module lifetime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/dll/src/Include/Hooker.h')
+          s=p.read_text(encoding='utf-8-sig')
+          old='''\t\t~IATHook()\n\t\t{\n\t\t\tuninstall(true);\n\t\t\t// free when use GetModuleHandleExW\n\t\t\tif(_hModule) ::FreeLibrary(_hModule);\n\t\t}\n'''
+          new='''\t\t~IATHook()\n\t\t{\n\t\t\tuninstall();\n\t\t\t// init() acquires a module reference with GetModuleHandleExW.\n\t\t\tif(_hModule) ::FreeLibrary(_hModule);\n\t\t}\n'''
+          if s.count(old)!=1:
+              raise SystemExit(f'destructor pattern count={s.count(old)}')
+          s=s.replace(old,new)
+          old2='''\t\t\tif(cleare)\n\t\t\t{\n\t\t\t\t_hModule = {};\n\t\t\t\t_import = {};\n\t\t\t\t_orignal = {};\n\t\t\t\t_detour = {};\n\t\t\t\t_thunk = {};\n\t\t\t}\n'''
+          new2='''\t\t\tif(cleare)\n\t\t\t{\n\t\t\t\t// Release the reference acquired by GetModuleHandleExW before clearing state.\n\t\t\t\tif(_hModule) ::FreeLibrary(_hModule);\n\t\t\t\t_hModule = {};\n\t\t\t\t_import = {};\n\t\t\t\t_orignal = {};\n\t\t\t\t_detour = {};\n\t\t\t\t_thunk = {};\n\t\t\t}\n'''
+          if s.count(old2)!=1:
+              raise SystemExit(f'clear pattern count={s.count(old2)}')
+          s=s.replace(old2,new2)
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git diff --check
+          git diff -- src/dll/src/Include/Hooker.h
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/dll/src/Include/Hooker.h
+          git commit -m 'fix: release IAT hook module references'
+          git pull --rebase origin main
+          git push origin HEAD:main
