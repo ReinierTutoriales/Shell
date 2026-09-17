@@ -182,7 +182,6 @@ namespace Nilesoft
 
 			HWND dr = 0;
 
-			D2D d2d;
 			WND(HWND hWnd = nullptr) : handle{ hWnd }
 			{
 				//cs.lock();

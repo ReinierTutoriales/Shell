@@ -313,7 +313,6 @@ namespace Nilesoft
 			ID2D1DCRenderTarget *render = nullptr;
 			IDWriteTextFormat *textFormat = nullptr;
 			ID2D1SolidColorBrush *brush = nullptr;
-			ID2D1StrokeStyle *stroke = nullptr;
 
 			HDC _hdc = nullptr;
 			RECT _rect{};
@@ -450,30 +449,6 @@ namespace Nilesoft
 				return _textFormat;
 			}
 
-			static ID2D1StrokeStyle *createStrokeStyle()
-			{
-				// Dash array for dashStyle D2D1_DASH_STYLE_CUSTOM
-				//float dashes[] = { 1.0f, 2.0f, 2.0f, 3.0f, 2.0f, 2.0f };
-				ID2D1StrokeStyle *stroke = nullptr;
-				if(DWriteFactory)
-				{
-					D2D1Factory->CreateStrokeStyle(
-						D2D1::StrokeStyleProperties(
-							D2D1_CAP_STYLE_ROUND,
-							D2D1_CAP_STYLE_ROUND,
-							D2D1_CAP_STYLE_ROUND,
-							D2D1_LINE_JOIN_ROUND,
-							0.0f,
-							D2D1_DASH_STYLE_SOLID,
-							0.0f),
-						nullptr,
-						0,
-						&stroke
-					);
-				}
-				return stroke;
-			}
-
 			ID2D1SolidColorBrush *createSolidColorBrush(D2D1::ColorF color)
 			{
 				if(render)
@@ -491,8 +466,6 @@ namespace Nilesoft
 					//	textFormat = createTextFormat(L"Segoe UI", 12);
 				}
 
-				if(!stroke)
-					stroke = createStrokeStyle();
 				return brush;//&& textFormat;
 			}
 
