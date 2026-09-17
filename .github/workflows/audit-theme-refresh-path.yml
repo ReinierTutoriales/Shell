@@ -1,0 +1,22 @@
+name: Audit theme refresh path
+
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-theme-refresh-path.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Map refresh message path
+        shell: bash
+        run: |
+          set -euo pipefail
+          git grep -n -E 'WM_(THEMECHANGED|SETTINGCHANGE|SYSCOLORCHANGE|DWMCOLORIZATIONCOLORCHANGED|INITMENUPOPUP|UNINITMENUPOPUP)|WindowProc|WndProc|switch\s*\(' -- src/dll/src/ContextMenu.cpp src/dll/src/Include/ContextMenu.h || true
