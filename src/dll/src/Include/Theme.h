@@ -834,35 +834,6 @@ namespace Nilesoft
 			//EnableTransparency
 			static constexpr auto key_personalize = LR"(SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize)";
 
-			static bool IsDarkMode(bool taskbar)
-			{
-				//Windows 10 build 10074
-				static constexpr auto systemUsesLightTheme = L"SystemUsesLightTheme";
-				//Windows 10 build 1809
-				constexpr auto appsUseLightTheme = L"AppsUseLightTheme";
-
-				bool _systemUsesLightTheme = true;
-				bool _appsUseLightTheme = true;
-
-				if(!IsHighContrast())
-				{
-					auto personalize = Registry::CurrentUser.OpenSubKey(key_personalize, false, false);
-					if(personalize)
-					{
-						//Windows 10 build 10074
-						if(personalize.ExistsValue(systemUsesLightTheme))
-						{
-							_systemUsesLightTheme = static_cast<bool>(personalize.GetDWord(systemUsesLightTheme));
-							//Windows 10 build 1809
-							if(personalize.ExistsValue(appsUseLightTheme))
-								_appsUseLightTheme = static_cast<bool>(personalize.GetDWord(appsUseLightTheme));
-						}
-						personalize.Close();
-					}
-				}
-				return taskbar ? !_systemUsesLightTheme : !_appsUseLightTheme;
-			}
-
 			static void ReadPersonalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)
 			{
 				if(lpEnableTransparency) *lpEnableTransparency = false;
@@ -886,18 +857,6 @@ namespace Nilesoft
 
 					personalize.Close();
 				}
-			}
-
-			static void Personalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)
-			{
-				if(IsHighContrast())
-				{
-					if(lpEnableTransparency) *lpEnableTransparency = false;
-					if(lpSystemUsesLightTheme) *lpSystemUsesLightTheme = true;
-					if(lpAppsUseLightTheme) *lpAppsUseLightTheme = true;
-					return;
-				}
-				ReadPersonalize(lpSystemUsesLightTheme, lpAppsUseLightTheme, lpEnableTransparency);
 			}
 
 			static SystemState CaptureSystemState()

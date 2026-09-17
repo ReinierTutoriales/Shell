@@ -2245,7 +2245,7 @@ namespace Nilesoft
 			_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);
 
 
-			auto is_sys_dark = Selected.Window.isTaskbar() ? !systemUsesLightTheme : !appsUseLightTheme;// Theme::IsDarkMode(Selected.Window.isTaskbar());
+			auto is_sys_dark = Selected.Window.isTaskbar() ? !systemUsesLightTheme : !appsUseLightTheme;
 
 			_theme.mode = is_sys_dark;
 
