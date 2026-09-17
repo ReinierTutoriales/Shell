@@ -21,25 +21,32 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
+
           path = Path('src/dll/src/ContextMenu.cpp')
           text = path.read_text(encoding='utf-8')
 
-          old_mode = '\t\t\t_theme.system.mode = systemUsesLightTheme ? 0 : 1;'
-          new_mode = '\t\t\t_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);'
-          if text.count(old_mode) != 1:
+          mode_pattern = r'(?m)^(\s*)_theme\.system\.mode = systemUsesLightTheme \? 0 : 1;$'
+          text, n = re.subn(mode_pattern, r'\1_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);', text, count=1)
+          if n != 1:
               raise SystemExit('early system mode assignment mismatch')
-          text = text.replace(old_mode, new_mode, 1)
 
-          old_fallback = '\t\t\t\t_theme.font.lfHeight = 12;dpi.valuexx<long>(12);'
-          new_fallback = '\t\t\t\t_theme.font.lfHeight = dpi.valuexx<long>(12);'
-          if text.count(old_fallback) != 1:
+          fallback_pattern = r'(?m)^(\s*)_theme\.font\.lfHeight = 12;dpi\.valuexx<long>\(12\);$'
+          text, n = re.subn(fallback_pattern, r'\1_theme.font.lfHeight = dpi.valuexx<long>(12);', text, count=1)
+          if n != 1:
               raise SystemExit('font fallback mismatch')
-          text = text.replace(old_fallback, new_fallback, 1)
 
-          old_scale = '''\n\t\t\tif(ver->IsWindows11OrGreater()) \n\t\t\t{\n\t\t\t\tDWORD dwTextScaleFactor = 100, cbData;\n\t\t\t\t::RegGetValueW(HKEY_CURRENT_USER, L"Software\\\\Microsoft\\\\Accessibility", \n\t\t\t\t\t\t\t   L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData);\n\t\t\t\tlong scale = ((dpi.val + 24) * dwTextScaleFactor) / 100;\n\t\t\t\t_theme.font.lfHeight = 12 * scale / 100;\n\t\t\t}\n'''
-          if text.count(old_scale) != 1:
+          scale_pattern = re.compile(
+              r'\n\s*if\(ver->IsWindows11OrGreater\(\)\)\s*\{\s*'
+              r'DWORD dwTextScaleFactor = 100, cbData;\s*'
+              r'::RegGetValueW\(HKEY_CURRENT_USER, L"Software\\\\Microsoft\\\\Accessibility",\s*'
+              r'L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData\);\s*'
+              r'long scale = \(\(dpi\.val \+ 24\) \* dwTextScaleFactor\) / 100;\s*'
+              r'_theme\.font\.lfHeight = 12 \* scale / 100;\s*'
+              r'\}\s*', re.MULTILINE)
+          text, n = scale_pattern.subn('\n', text, count=1)
+          if n != 1:
               raise SystemExit('Windows 11 TextScaleFactor override mismatch')
-          text = text.replace(old_scale, '\n', 1)
 
           path.write_text(text, encoding='utf-8', newline='')
 
