@@ -1,0 +1,21 @@
+name: Audit hook wrapper consumers
+on:
+  push:
+    paths: ['.github/workflows/audit-hooker-consumers.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Inspect hook wrapper consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          for term in 'WinEventHook' 'WindowSubclass' 'Hooker' 'SetWindowsHookExW' 'CallNextHookEx' 'UnhookWindowsHookEx' 'SetWinEventHook' 'SetWindowSubclass'; do
+            echo "=== $term ==="
+            grep -RIn --exclude-dir=.git --exclude='audit-hooker-consumers.yml' -F "$term" src || true
+          done
+          echo '=== Hooker include sites ==='
+          grep -RIn --exclude-dir=.git -E '#include[[:space:]]+["<].*(Hooker|win32_hook)' src || true
