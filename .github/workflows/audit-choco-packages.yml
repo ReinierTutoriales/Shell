@@ -1,0 +1,51 @@
+name: Audit Chocolatey package references
+on:
+  push:
+    paths: ['.github/workflows/audit-choco-packages.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Inspect Chocolatey packages and references
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          rows=[]
+          root=Path('packages/choco')
+          rows.append('FILES')
+          if root.exists():
+            for p in root.rglob('*'):
+              if p.is_file():
+                rows.append(f'{p}\t{p.stat().st_size}')
+          rows.append('')
+          rows.append('REFERENCES')
+          needles=('packages/choco','chocolateyinstall.ps1','chocolateyuninstall.ps1','.nupkg','nilesoft.shell.')
+          text_exts={'.sln','.vcxproj','.vcxproj.filters','.csproj','.props','.targets','.ps1','.cmd','.bat','.sh','.yml','.yaml','.xml','.nuspec','.config','.iss','.wxs','.wxi','.md','.txt','.cpp','.h','.hpp','.c'}
+          for p in Path('.').rglob('*'):
+            if not p.is_file() or '.git' in p.parts or p.as_posix()=='.github/workflows/audit-choco-packages.yml':
+              continue
+            if p.suffix.lower() not in text_exts:
+              continue
+            try:
+              lines=p.read_text(encoding='utf-8-sig',errors='replace').splitlines()
+            except OSError:
+              continue
+            for i,line in enumerate(lines,1):
+              lo=line.lower()
+              if any(n.lower() in lo for n in needles):
+                rows.append(f'{p}:{i}\t{line.strip()}')
+          report='\n'.join(rows)+'\n'
+          Path('choco-audit.txt').write_text(report,encoding='utf-8')
+          print(report)
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: choco-audit
+          path: choco-audit.txt
+          retention-days: 1
