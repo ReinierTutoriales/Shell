@@ -1,0 +1,30 @@
+name: Restore Hooker exact
+on:
+  push:
+    paths: ['.github/workflows/restore-hooker-exact.yml']
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Restore known-good Hooker
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          git show 17e099cff2e69d875c73756614279e75f29fc6e6:src/dll/src/Include/Hooker.h > src/dll/src/Include/Hooker.h
+          test "$(wc -l < src/dll/src/Include/Hooker.h)" -gt 300
+          grep -q 'struct IATHook' src/dll/src/Include/Hooker.h
+          grep -q 'bool commit(uintptr_t lpfunc' src/dll/src/Include/Hooker.h
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/dll/src/Include/Hooker.h
+          git commit -m 'fix: restore Hooker header after truncated update'
+          git pull --rebase origin main
+          git push origin HEAD:main
