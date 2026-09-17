@@ -5577,7 +5577,8 @@ namespace Nilesoft
 						Rect r = hWnd;
 						D2D d2d;
 						
-						d2d.begin(wnd->hdc, { 0, 0, r.width(), r.height() });
+						if(!d2d.begin(wnd->hdc, { 0, 0, r.width(), r.height() }))
+							return wnd->msg.invoke();
 						
 						//auto z = (float)theme->border.size*2;
 						D2D1_RECT_F rect = { 0.0f, 0.0f, float(r.width()), float(r.height()) };
