@@ -1,0 +1,59 @@
+name: Theme state and font cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/theme-state-font-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Consolidate system theme state and font acquisition
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/dll/src/ContextMenu.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          old_mode = '\t\t\t_theme.system.mode = systemUsesLightTheme ? 0 : 1;'
+          new_mode = '\t\t\t_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);'
+          if text.count(old_mode) != 1:
+              raise SystemExit('early system mode assignment mismatch')
+          text = text.replace(old_mode, new_mode, 1)
+
+          old_fallback = '\t\t\t\t_theme.font.lfHeight = 12;dpi.valuexx<long>(12);'
+          new_fallback = '\t\t\t\t_theme.font.lfHeight = dpi.valuexx<long>(12);'
+          if text.count(old_fallback) != 1:
+              raise SystemExit('font fallback mismatch')
+          text = text.replace(old_fallback, new_fallback, 1)
+
+          old_scale = '''\n\t\t\tif(ver->IsWindows11OrGreater()) \n\t\t\t{\n\t\t\t\tDWORD dwTextScaleFactor = 100, cbData;\n\t\t\t\t::RegGetValueW(HKEY_CURRENT_USER, L"Software\\\\Microsoft\\\\Accessibility", \n\t\t\t\t\t\t\t   L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData);\n\t\t\t\tlong scale = ((dpi.val + 24) * dwTextScaleFactor) / 100;\n\t\t\t\t_theme.font.lfHeight = 12 * scale / 100;\n\t\t\t}\n'''
+          if text.count(old_scale) != 1:
+              raise SystemExit('Windows 11 TextScaleFactor override mismatch')
+          text = text.replace(old_scale, '\n', 1)
+
+          path.write_text(text, encoding='utf-8', newline='')
+
+      - name: Validate and commit
+        shell: bash
+        run: |
+          git diff --check
+          ! grep -q 'TextScaleFactor' src/dll/src/ContextMenu.cpp
+          ! grep -q 'lfHeight = 12;dpi.valuexx' src/dll/src/ContextMenu.cpp
+          count=$(grep -F -c '_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);' src/dll/src/ContextMenu.cpp)
+          test "$count" -eq 2
+          git config user.name 'ReinierTutoriales'
+          git config user.email '86568548+ReinierTutoriales@users.noreply.github.com'
+          git add src/dll/src/ContextMenu.cpp
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: honor Windows menu font and high contrast state'
+          git push
