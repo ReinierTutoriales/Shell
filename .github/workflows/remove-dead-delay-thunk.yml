@@ -1,0 +1,52 @@
+name: Remove dead delay thunk
+on:
+  push:
+    paths: ['.github/workflows/remove-dead-delay-thunk.yml']
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Remove unreachable get_delay_thunk
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/dll/src/Include/Hooker.h')
+          s=p.read_text(encoding='utf-8-sig')
+          needle='\t\tbool get_delay_thunk()\n'
+          if s.count(needle)!=1:
+              raise SystemExit(f'get_delay_thunk declaration count={s.count(needle)}')
+          start=s.index(needle)
+          brace=s.index('{',start)
+          depth=0
+          end=None
+          for i in range(brace,len(s)):
+              if s[i]=='{': depth+=1
+              elif s[i]=='}':
+                  depth-=1
+                  if depth==0:
+                      end=i+1
+                      break
+          if end is None: raise SystemExit('function end not found')
+          while end < len(s) and s[end] in '\r\n': end+=1
+          s=s[:start]+s[end:]
+          if 'get_delay_thunk' in s:
+              raise SystemExit('get_delay_thunk remains after removal')
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git diff --check
+          grep -RIn --exclude-dir=.git -F 'get_delay_thunk' src && exit 1 || true
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/dll/src/Include/Hooker.h
+          git commit -m 'refactor: remove unreachable delay IAT parser'
+          git pull --rebase origin main
+          git push origin HEAD:main
