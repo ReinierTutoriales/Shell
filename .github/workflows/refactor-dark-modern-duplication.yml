@@ -1,0 +1,38 @@
+name: Refactor dark modern duplication
+
+on:
+  push:
+    paths:
+      - '.github/workflows/refactor-dark-modern-duplication.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: true
+      - name: Apply exact dark modern cleanup
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/dll/src/Include/Theme.h')
+          s = p.read_text(encoding='utf-8')
+          old = '''\t\t\t\tif(modern)\n\t\t\t\t{\n\t\t\t\t\tth = Modern(ThemeType::Dark, 1, enableTransparency);\n\t\t\t\t\tif(!enableTransparency)\n\t\t\t\t\t{\n\t\t\t\t\t\tth.border.color.opacity(10);\n\t\t\t\t\t\tth.background.color = 0xFF2C2C2C;\n\t\t\t\t\t\tth.separator.color = 0xFF3D3D3D;\n\t\t\t\t\t\tth.text.color = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFF6D6D6D, 0xFF6D6D6D };\n\t\t\t\t\t\tth.back.color = { 0xFF2C2C2C, 0xFF383838, 0xFF2C2C2C, 0xFF2C2C2C };\n\t\t\t\t\t}\n\t\t\t\t}\n'''
+          new = '''\t\t\t\tif(modern)\n\t\t\t\t{\n\t\t\t\t\tth = Modern(ThemeType::Dark, 1, enableTransparency);\n\t\t\t\t\tif(!enableTransparency)\n\t\t\t\t\t{\n\t\t\t\t\t\tth.border.color.opacity(10);\n\t\t\t\t\t\t// Preserve the explicit Dark theme's stronger disabled-text contrast.\n\t\t\t\t\t\tth.text.color.nor_dis = 0xFF6D6D6D;\n\t\t\t\t\t\tth.text.color.sel_dis = 0xFF6D6D6D;\n\t\t\t\t\t}\n\t\t\t\t}\n'''
+          if s.count(old) != 1:
+              raise SystemExit(f'expected one Dark modern block, found {s.count(old)}')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8', newline='')
+      - name: Commit transform
+        shell: bash
+        run: |
+          git config user.name "ReinierTutoriales"
+          git config user.email "86568548+ReinierTutoriales@users.noreply.github.com"
+          git add src/dll/src/Include/Theme.h
+          git diff --cached --check
+          git commit -m "refactor(theme): remove duplicate dark modern palette values"
+          git push origin HEAD:main
