@@ -2784,14 +2784,6 @@ namespace Nilesoft
 						_theme = Theme::System();
 						_theme.mode = is_dark;
 
-						// Windows owns the default geometry for the System/Auto baseline.
-						// Capture the Windows-owned check/icon slot once during initialization.
-						// Item vertical spacing depends on the final menu font and remains on the
-						// established path until it can be derived after font resolution.
-						const auto systemMenuCheckWidth = ::GetSystemMetricsForDpi(SM_CXMENUCHECK, dpi.val);
-						const auto systemMenuCheckHeight = ::GetSystemMetricsForDpi(SM_CYMENUCHECK, dpi.val);
-						if(systemMenuCheckWidth > 0 && systemMenuCheckHeight > 0)
-							_theme.image.size = static_cast<uint32_t>((std::min)(systemMenuCheckWidth, systemMenuCheckHeight));
 						//10240, 10586, 14393, 10593, 16299, 17134
 						//17666 , 19042
 						//ImmersiveStartDark::Menu;ImmersiveStart::Menu
