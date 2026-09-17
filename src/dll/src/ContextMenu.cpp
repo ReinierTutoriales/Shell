@@ -1,4 +1,4 @@
-#include <pch.h>
+﻿#include <pch.h>
 #include "Include/Theme.h"
 #include "Include/ContextMenu.h"
 #include "Include/stb_image_write.h"
@@ -2593,9 +2593,6 @@ namespace Nilesoft
 			Theme::GetFont(&font.menu, dpi.val);
 
 		//	long zofont = std::abs(font.menu.lfHeight);
-
-			font.menu.lfHeight = dpi(font.menu.lfHeight);
-
 			_context.font.text = font.menu.lfFaceName;
 
 			bool enableTransparency = false;
@@ -2929,7 +2926,7 @@ namespace Nilesoft
 			}
 
 			_theme.system.transparency = enableTransparency;
-			_theme.system.mode = systemUsesLightTheme ? 0 : 1;
+			_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);
 			_theme.isHighContrast = isHighContrast;
 			_theme.appsUseLightTheme = appsUseLightTheme;
 			_theme.mode = is_dark;
@@ -3596,8 +3593,10 @@ namespace Nilesoft
 			ev_sb_dis(&th->symbol.color.select_disabled, false);
 
 			eval_state(&th->symbol.chevron, &_theme.symbols.chevron);
-			eval_state(&th->symbol.bullet, &_theme.symbols.chevron);
-			eval_state(&th->symbol.checkmark, &_theme.symbols.chevron);
+
+			eval_state(&th->symbol.bullet, &_theme.symbols.bullet);
+
+			eval_state(&th->symbol.checkmark, &_theme.symbols.checked);
 
 			if(_context.eval_number(th->image.display, obj))
 			{
@@ -4428,7 +4427,10 @@ namespace Nilesoft
 				hInstance = _window.instance();
 
 				composition.activated = ::IsCompositionActive();
-				::DwmIsCompositionEnabled(reinterpret_cast<BOOL *>(&composition.DwmEnabled));
+
+				BOOL dwmEnabled = FALSE;
+
+				composition.DwmEnabled = SUCCEEDED(::DwmIsCompositionEnabled(&dwmEnabled)) && dwmEnabled != FALSE;
 				
 				init_cfg();
 				
@@ -5041,10 +5043,15 @@ namespace Nilesoft
 				Compositor::TransparentArea(hWnd);
 			}
 
-			BOOL ENABLED = TRUE;
-			::DwmSetWindowAttribute(hWnd, DWMWA_NCRENDERING_ENABLED, &ENABLED, sizeof(BOOL));
-			::DwmSetWindowAttribute(hWnd, DWMWA_ALLOW_NCPAINT, &ENABLED, sizeof(BOOL));
-			::DwmSetWindowAttribute(hWnd, DWMWA_NONCLIENT_RTL_LAYOUT, &ENABLED, sizeof(BOOL));
+			BOOL enabled = TRUE;
+
+			BOOL rtl = is_layoutRTL ? TRUE : FALSE;
+
+			::DwmSetWindowAttribute(hWnd, DWMWA_NCRENDERING_ENABLED, &enabled, sizeof(enabled));
+
+			::DwmSetWindowAttribute(hWnd, DWMWA_ALLOW_NCPAINT, &enabled, sizeof(enabled));
+
+			::DwmSetWindowAttribute(hWnd, DWMWA_NONCLIENT_RTL_LAYOUT, &rtl, sizeof(rtl));
 
 			WindowSubclass::Set(hWnd, MenuSubClassProc, 0, this);
 			//::ShowWindowAsync(hWnd, SW_HIDE);

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 namespace Nilesoft
 {
@@ -857,6 +857,9 @@ namespace Nilesoft
 
 			static void Personalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)
 			{
+			if(lpEnableTransparency) *lpEnableTransparency = false;
+			if(lpSystemUsesLightTheme) *lpSystemUsesLightTheme = true;
+			if(lpAppsUseLightTheme) *lpAppsUseLightTheme = true;
 				static constexpr auto enableTransparency = L"EnableTransparency";
 				//Windows 10 build 10074
 				static constexpr auto systemUsesLightTheme = L"SystemUsesLightTheme";
