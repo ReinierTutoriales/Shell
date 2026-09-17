@@ -215,8 +215,37 @@ namespace Nilesoft
 						::FileTimeToLocalFileTime(&ftWrite, &ftWrite);
 						::FileTimeToSystemTime(&ftWrite, lpLastWriteTime);
 					}
+				}
 			}
 			return result;
 		}
 
 		static inline bool GetDateTime(const wchar_t *path, SYSTEMTIME *lpCreationTime, SYSTEMTIME *lpLastAccessTime, SYSTEMTIME *lpLastWriteTime)
+		{
+			bool result = false;
+			auto hFile = ::CreateFileW(path, FILE_READ_ATTRIBUTES,
+									   FILE_SHARE_READ | FILE_SHARE_DELETE,
+									   nullptr, OPEN_EXISTING, 0, nullptr);
+			if(hFile != INVALID_HANDLE_VALUE)
+			{
+				result = GetDateTime(hFile, lpCreationTime, lpLastAccessTime, lpLastWriteTime);
+				::CloseHandle(hFile);
+			}
+			return result;
+		}
+
+		static inline bool DateTime(bool set, HANDLE hFile, SYSTEMTIME *lpCreationTime, SYSTEMTIME *lpLastAccessTime, SYSTEMTIME *lpLastWriteTime)
+		{
+			if(set)
+				return SetDateTime(hFile, lpCreationTime, lpLastAccessTime, lpLastWriteTime);
+			return GetDateTime(hFile, lpCreationTime, lpLastAccessTime, lpLastWriteTime);
+		}
+
+		static inline bool DateTime(bool set, const wchar_t *path, SYSTEMTIME *lpCreationTime, SYSTEMTIME *lpLastAccessTime, SYSTEMTIME *lpLastWriteTime)
+		{
+			if(set)
+				return SetDateTime(path, lpCreationTime, lpLastAccessTime, lpLastWriteTime);
+			return GetDateTime(path, lpCreationTime, lpLastAccessTime, lpLastWriteTime);
+		}
+	}
+}
