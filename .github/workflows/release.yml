@@ -8,7 +8,7 @@ on:
       - ".github/workflows/release.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -27,15 +27,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v3
+        with:
+          vs-version: '[17.0,18.0)'
 
       - name: Restore NuGet packages
-        run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+        run: nuget restore ${{ env.SOLUTION_FILE_PATH }} -NonInteractive
 
       - name: Build
-        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} ${{ env.SOLUTION_FILE_PATH }}
+        run: msbuild /m /restore /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} ${{ env.SOLUTION_FILE_PATH }}
 
       - name: Stage package
         shell: pwsh
@@ -58,9 +62,13 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: windows-2022
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Read version
         id: version
