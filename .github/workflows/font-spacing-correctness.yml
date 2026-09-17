@@ -1,0 +1,33 @@
+name: Font spacing type correction
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/font-spacing-correctness.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - shell: python
+        run: |
+          from pathlib import Path
+          p=Path('src/dll/src/ContextMenu.cpp')
+          s=p.read_text(encoding='utf-8')
+          old='(_theme.type == ThemeType::System || _theme.type == ThemeType::Auto)'
+          new='(_theme.Type == ThemeType::System || _theme.Type == ThemeType::Auto)'
+          if s.count(old)!=1: raise SystemExit('type expression mismatch')
+          p.write_text(s.replace(old,new,1),encoding='utf-8',newline='')
+      - shell: bash
+        run: |
+          git diff --check
+          grep -Fq '_theme.Type == ThemeType::System' src/dll/src/ContextMenu.cpp
+          git config user.name ReinierTutoriales
+          git config user.email 86568548+ReinierTutoriales@users.noreply.github.com
+          git add src/dll/src/ContextMenu.cpp
+          git commit -m 'fix: use resolved theme type for system spacing'
+          git push
