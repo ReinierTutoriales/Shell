@@ -1,0 +1,43 @@
+name: Refactor modern theme metrics
+
+on:
+  push:
+    paths:
+      - '.github/workflows/refactor-modern-metrics.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: true
+      - name: Apply exact modern metrics transform
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/dll/src/Include/Theme.h')
+          s = p.read_text(encoding='utf-8')
+          anchor = '''\t\t\tstatic auto Modern(auto type = ThemeType::Light, uint8_t mode = 0, uint8_t enableTransparency = 0)\n'''
+          metrics = '''\t\t\tstruct ModernMetrics\n\t\t\t{\n\t\t\t\tuint8_t menuRadius = 8;\n\t\t\t\tuint8_t itemRadius = 4;\n\t\t\t\tuint8_t separatorSize = 1;\n\t\t\t\tMargin borderPadding = { 0, 4, 0, 4 };\n\t\t\t\tMargin separatorMargin = { 0, 4, 0, 4 };\n\t\t\t\tMargin itemPadding = { 10, 4, 10, 4 };\n\t\t\t\tMargin itemMargin = { 4, 0, 4, 0 };\n\t\t\t\tMargin tipPadding = { 10, 10, 10, 10 };\n\t\t\t\tuint8_t tipRadius = 4;\n\t\t\t\tuint8_t shadowSize = 3;\n\t\t\t\tuint8_t shadowOffset = 2;\n\t\t\t};\n\n\t\t\tinline static constexpr ModernMetrics modernMetrics{};\n\n'''
+          if s.count(anchor) != 1:
+              raise SystemExit(f'expected one Modern anchor, found {s.count(anchor)}')
+          s = s.replace(anchor, metrics + anchor, 1)
+          old = '''\t\t\t\tth.border.radius = 8;\n\t\t\t\tth.border.size = 0;\n\t\t\t\tth.border.padding = { 0, 4, 0, 4 };\n\t\t\t\tth.separator.size = 1;\n\t\t\t\tth.separator.margin = { 0, 4, 0, 4 };\n\t\t\t\tth.text.size = 14;\n\t\t\t\tth.back.padding = { 10, 4, 10, 4 };\n\t\t\t\tth.back.margin = { 4, 0, 4, 0 };\n\t\t\t\tth.back.radius = 4;\n\t\t\t\t\n\t\t\t\tth.tip.padding = { 10,10,10,10 };\n\t\t\t\tth.tip.radius = 4;\n\n\t\t\t\tth.border.color.opacity(10);\n\n\t\t\t\tth.shadow.size = 3;\n\t\t\t\tth.shadow.offset = 2;\n'''
+          new = '''\t\t\t\tth.border.radius = modernMetrics.menuRadius;\n\t\t\t\tth.border.size = 0;\n\t\t\t\tth.border.padding = modernMetrics.borderPadding;\n\t\t\t\tth.separator.size = modernMetrics.separatorSize;\n\t\t\t\tth.separator.margin = modernMetrics.separatorMargin;\n\t\t\t\tth.text.size = 14;\n\t\t\t\tth.back.padding = modernMetrics.itemPadding;\n\t\t\t\tth.back.margin = modernMetrics.itemMargin;\n\t\t\t\tth.back.radius = modernMetrics.itemRadius;\n\t\t\t\t\n\t\t\t\tth.tip.padding = modernMetrics.tipPadding;\n\t\t\t\tth.tip.radius = modernMetrics.tipRadius;\n\n\t\t\t\tth.border.color.opacity(10);\n\n\t\t\t\tth.shadow.size = modernMetrics.shadowSize;\n\t\t\t\tth.shadow.offset = modernMetrics.shadowOffset;\n'''
+          if s.count(old) != 1:
+              raise SystemExit(f'expected one Modern metrics block, found {s.count(old)}')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8', newline='')
+      - name: Commit transform
+        shell: bash
+        run: |
+          git config user.name "ReinierTutoriales"
+          git config user.email "86568548+ReinierTutoriales@users.noreply.github.com"
+          git add src/dll/src/Include/Theme.h
+          git diff --cached --check
+          git commit -m "refactor(theme): centralize modern menu metrics"
+          git push origin HEAD:main
