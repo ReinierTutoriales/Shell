@@ -563,17 +563,6 @@ namespace Nilesoft
 				return ret;
 			}
 
-			bool set(HMENU hMenu, int item, bool byPosition = true)
-			{
-				if(!title.text.empty())
-				{
-					dwTypeData = title.text;
-					cch = title.text.length<uint32_t>();
-				}
-
-				return ::GetMenuItemInfoW(hMenu, item, byPosition, this);
-			}
-
 			void set_popup_menu()
 			{
 				if(!is_popup())
