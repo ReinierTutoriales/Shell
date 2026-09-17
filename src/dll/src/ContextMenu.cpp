@@ -2657,7 +2657,6 @@ namespace Nilesoft
 			_theme.isHighContrast = isHighContrast;
 
 			_theme.system.transparency = enableTransparency;
-			_theme.system.mode = systemUsesLightTheme ? 0 : 1;
 
 			struct {
 				int8_t effect = 0;
@@ -2778,7 +2777,10 @@ namespace Nilesoft
 						_theme = Theme::HighContrast();
 					else
 					{
-						_theme = is_dark ? Theme::Dark(false, enableTransparency) : Theme::Light(false, enableTransparency);
+						// Windows owns the baseline. UxTheme values below refine this system palette;
+						// NSS configuration is applied afterwards as the explicit override layer.
+						_theme = Theme::System();
+						_theme.mode = is_dark;
 						//10240, 10586, 14393, 10593, 16299, 17134
 						//17666 , 19042
 						//ImmersiveStartDark::Menu;ImmersiveStart::Menu
