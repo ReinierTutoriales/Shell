@@ -726,7 +726,6 @@ plutovg_move_to(pluto, start.x, start.y);
 			LRESULT OnDrawItem(DRAWITEMSTRUCT *di);
 			LRESULT OnMeasureItem(MEASUREITEMSTRUCT *mi);
 
-			LRESULT OnDrawItem_D2D(DRAWITEMSTRUCT *di);
 
 			uint32_t invoke(CommandProperty *cmd_prop);
 			bool is_excluded();
