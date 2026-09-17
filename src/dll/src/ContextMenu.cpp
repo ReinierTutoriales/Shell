@@ -2783,6 +2783,22 @@ namespace Nilesoft
 						// NSS configuration is applied afterwards as the explicit override layer.
 						_theme = Theme::System();
 						_theme.mode = is_dark;
+
+						// Windows owns the default geometry for the System/Auto baseline.
+						// Capture DPI-aware menu metrics once during menu initialization; explicit
+						// NSS theme/view overrides are evaluated later and therefore still win.
+						const auto systemMenuHeight = ::GetSystemMetricsForDpi(SM_CYMENU, dpi.val);
+						const auto systemMenuCheckWidth = ::GetSystemMetricsForDpi(SM_CXMENUCHECK, dpi.val);
+						const auto systemMenuCheckHeight = ::GetSystemMetricsForDpi(SM_CYMENUCHECK, dpi.val);
+						if(systemMenuHeight > 0)
+						{
+							const auto fontHeight = std::max<long>(1, std::abs(_theme.font.lfHeight));
+							const auto verticalSpace = std::max<long>(0, systemMenuHeight - fontHeight);
+							_theme.back.padding.top = verticalSpace / 2;
+							_theme.back.padding.bottom = verticalSpace - _theme.back.padding.top;
+						}
+						if(systemMenuCheckWidth > 0 && systemMenuCheckHeight > 0)
+							_theme.image.size = static_cast<uint32_t>(std::min(systemMenuCheckWidth, systemMenuCheckHeight));
 						//10240, 10586, 14393, 10593, 16299, 17134
 						//17666 , 19042
 						//ImmersiveStartDark::Menu;ImmersiveStart::Menu
