@@ -16,18 +16,19 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          p=Path('src/dll/src/Include/MenuItem.h')
-          s=p.read_text(encoding='utf-8')
-          old='''\n\t\t\tHBITMAP get_image()\n\t\t\t{\n\t\t\t}\n'''
-          if s.count(old)!=1: raise SystemExit('empty get_image accessor mismatch')
-          s=s.replace(old,'\n',1)
-          p.write_text(s,encoding='utf-8',newline='')
+          import re
+          p = Path('src/dll/src/Include/MenuItem.h')
+          s = p.read_text(encoding='utf-8')
+          pattern = r'\n\s*HBITMAP\s+get_image\s*\(\s*\)\s*\{\s*\}\s*'
+          s2, count = re.subn(pattern, '\n', s, count=1)
+          if count != 1:
+              raise SystemExit(f'empty get_image accessor count={count}')
+          p.write_text(s2, encoding='utf-8', newline='')
       - name: Validate and commit
         shell: bash
         run: |
           git diff --check
-          test "$(grep -F -c 'HBITMAP get_image()' src/dll/src/Include/MenuItem.h || true)" -eq 0
-          grep -Fq 'HBITMAP' src/dll/src/Include/MenuItem.h
+          test "$(grep -F -c 'HBITMAP get_image' src/dll/src/Include/MenuItem.h || true)" -eq 0
           grep -Fq 'hbmpItem;' src/dll/src/Include/MenuItem.h
           git config user.name ReinierTutoriales
           git config user.email 86568548+ReinierTutoriales@users.noreply.github.com
