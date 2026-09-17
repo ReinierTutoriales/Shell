@@ -1,0 +1,53 @@
+name: Cleanup dead theme state APIs
+
+on:
+  push:
+    paths:
+      - '.github/workflows/cleanup-theme-state-apis.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: true
+      - name: Apply exact cleanup
+        shell: python
+        run: |
+          from pathlib import Path
+
+          theme = Path('src/dll/src/Include/Theme.h')
+          s = theme.read_text(encoding='utf-8')
+
+          old_dark = '''\t\t\tstatic bool IsDarkMode(bool taskbar)\n\t\t\t{\n\t\t\t\t//Windows 10 build 10074\n\t\t\t\tstatic constexpr auto systemUsesLightTheme = L"SystemUsesLightTheme";\n\t\t\t\t//Windows 10 build 1809\n\t\t\t\tconstexpr auto appsUseLightTheme = L"AppsUseLightTheme";\n\n\t\t\t\tbool _systemUsesLightTheme = true;\n\t\t\t\tbool _appsUseLightTheme = true;\n\n\t\t\t\tif(!IsHighContrast())\n\t\t\t\t{\n\t\t\t\t\tauto personalize = Registry::CurrentUser.OpenSubKey(key_personalize, false, false);\n\t\t\t\t\tif(personalize)\n\t\t\t\t\t{\n\t\t\t\t\t\t//Windows 10 build 10074\n\t\t\t\t\t\tif(personalize.ExistsValue(systemUsesLightTheme))\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t_systemUsesLightTheme = static_cast<bool>(personalize.GetDWord(systemUsesLightTheme));\n\t\t\t\t\t\t\t//Windows 10 build 1809\n\t\t\t\t\t\t\tif(personalize.ExistsValue(appsUseLightTheme))\n\t\t\t\t\t\t\t\t_appsUseLightTheme = static_cast<bool>(personalize.GetDWord(appsUseLightTheme));\n\t\t\t\t\t\t}\n\t\t\t\t\t\tpersonalize.Close();\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\treturn taskbar ? !_systemUsesLightTheme : !_appsUseLightTheme;\n\t\t\t}\n\n'''
+          if s.count(old_dark) != 1:
+              raise SystemExit(f'expected one IsDarkMode block, found {s.count(old_dark)}')
+          s = s.replace(old_dark, '', 1)
+
+          old_personalize = '''\t\t\tstatic void Personalize(bool *lpSystemUsesLightTheme = nullptr, bool *lpAppsUseLightTheme = nullptr, bool *lpEnableTransparency = nullptr)\n\t\t\t{\n\t\t\t\tif(IsHighContrast())\n\t\t\t\t{\n\t\t\t\t\tif(lpEnableTransparency) *lpEnableTransparency = false;\n\t\t\t\t\tif(lpSystemUsesLightTheme) *lpSystemUsesLightTheme = true;\n\t\t\t\t\tif(lpAppsUseLightTheme) *lpAppsUseLightTheme = true;\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tReadPersonalize(lpSystemUsesLightTheme, lpAppsUseLightTheme, lpEnableTransparency);\n\t\t\t}\n\n'''
+          if s.count(old_personalize) != 1:
+              raise SystemExit(f'expected one Personalize block, found {s.count(old_personalize)}')
+          s = s.replace(old_personalize, '', 1)
+          theme.write_text(s, encoding='utf-8', newline='')
+
+          cm = Path('src/dll/src/ContextMenu.cpp')
+          c = cm.read_text(encoding='utf-8')
+          old_comment = 'Selected.Window.isTaskbar() ? !systemUsesLightTheme : !appsUseLightTheme;// Theme::IsDarkMode(Selected.Window.isTaskbar());'
+          new_comment = 'Selected.Window.isTaskbar() ? !systemUsesLightTheme : !appsUseLightTheme;'
+          if c.count(old_comment) != 1:
+              raise SystemExit(f'expected one stale IsDarkMode comment, found {c.count(old_comment)}')
+          c = c.replace(old_comment, new_comment, 1)
+          cm.write_text(c, encoding='utf-8', newline='')
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          git config user.name "ReinierTutoriales"
+          git config user.email "86568548+ReinierTutoriales@users.noreply.github.com"
+          git add src/dll/src/Include/Theme.h src/dll/src/ContextMenu.cpp
+          git diff --cached --check
+          git commit -m "refactor(theme): remove dead state helper APIs"
+          git push origin HEAD:main
