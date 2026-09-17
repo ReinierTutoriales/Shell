@@ -1,0 +1,47 @@
+name: Source hygiene cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/source-hygiene-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove accidental UTF-8 BOM only
+        shell: python
+        run: |
+          from pathlib import Path
+
+          paths = [
+              Path('src/dll/src/ContextMenu.cpp'),
+              Path('src/dll/src/Include/Theme.h'),
+          ]
+
+          for path in paths:
+              data = path.read_bytes()
+              bom = b'\xef\xbb\xbf'
+              if not data.startswith(bom):
+                  raise SystemExit(f'{path}: expected UTF-8 BOM was not present')
+              path.write_bytes(data[len(bom):])
+
+      - name: Validate and commit
+        shell: bash
+        run: |
+          git diff --check
+          git diff --numstat
+          git config user.name 'ReinierTutoriales'
+          git config user.email '86568548+ReinierTutoriales@users.noreply.github.com'
+          git add src/dll/src/ContextMenu.cpp src/dll/src/Include/Theme.h
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore: restore source encoding hygiene'
+          git push
