@@ -105,7 +105,7 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DebugInformationFormat>None</DebugInformationFormat>
-      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <Optimization>MaxSpeed</Optimization>
       <EnableModules>false</EnableModules>
@@ -113,11 +113,11 @@
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>false</OptimizeReferences>
+      <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <IgnoreEmbeddedIDL>true</IgnoreEmbeddedIDL>
-      <AdditionalOptions>/DEBUG:NONE /EMITPOGOPHASEINFO</AdditionalOptions>
+      <AdditionalOptions>/DEBUG:NONE</AdditionalOptions>
       <SetChecksum>true</SetChecksum>
       <IgnoreSpecificDefaultLibraries />
       <ImageHasSafeExceptionHandlers />
