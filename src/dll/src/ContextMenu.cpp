@@ -3712,7 +3712,7 @@ namespace Nilesoft
 				_theme.font.lfQuality = DEFAULT_QUALITY;
 				string::Copy(_theme.font.lfFaceName, L"Segoe UI");
 			}
-if(__font.name.is_string())
+			if(__font.name.is_string())
 			{
 				string value = __font.name.to_string().trim().move();
 				if(!value.empty())
@@ -3756,15 +3756,9 @@ if(__font.name.is_string())
 
 			if(font_size >= 6)
 			{
-				//font_size = dpi(font_size);
-				if(font_size != _theme.font.lfHeight)
-				{
-					auto of = std::abs(_theme.font.lfHeight);
-					//auto di = font_size - of;
-					_theme.font.lfHeight = font_size;
-					dpi.val = (font_size * dpi.val) / of;
-					//MBF(L"%d, %d, %d", dpi.val, (font_size * dpi.val) / of, di);
-				}
+				// Explicit NSS font size remains an override. Keep menu DPI owned by
+				// the window/monitor instead of mutating it from a typography choice.
+				_theme.font.lfHeight = -dpi.value<long>(font_size);
 			}
 			
 			if(_theme.image.enabled) 
