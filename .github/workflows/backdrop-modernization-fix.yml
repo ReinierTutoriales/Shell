@@ -1,0 +1,67 @@
+name: Windows backdrop modernization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/backdrop-modernization-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Modernize transient backdrop integration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/dll/src/ContextMenu.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          old_enum = '''\tenum class BackdropType : int\n\t{\n\t\tDefault = 0,\n\t\tNone = 1,\n\t\tMica = 2,\n\t\tAcrylic = 3,\n\t\tTabbed = 4,\n\t};'''
+          new_enum = '''\tenum class BackdropType : int\n\t{\n\t\tAuto = 0,\n\t\tNone = 1,\n\t\tMainWindow = 2,\n\t\tTransientWindow = 3,\n\t\tTabbedWindow = 4,\n\t};'''
+          if text.count(old_enum) != 1:
+              raise SystemExit('BackdropType block mismatch')
+          text = text.replace(old_enum, new_enum, 1)
+
+          old_comment = '''\t/// <summary>\n\t/// Set backdrop type on target window\n\t/// Requires Windows build 22523 or higher.\n\t/// </summary>'''
+          new_comment = '''\t/// <summary>\n\t/// Requests a system-managed backdrop. DWMWA_SYSTEMBACKDROP_TYPE is public\n\t/// starting with Windows 11 22H2 (build 22621).\n\t/// </summary>'''
+          if text.count(old_comment) != 1:
+              raise SystemExit('SetBackdropType comment mismatch')
+          text = text.replace(old_comment, new_comment, 1)
+
+          old_mica = '''\n\t/// <summary>\n\t/// Enable or Disable Mica on target window\n\t/// Supported on Windows builds from 22000 to 22523. It doesn't work on 22523, use <see cref="SetBackdropType(IntPtr, DWM_SYSTEMBACKDROP_TYPE)"/> instead.\n\t/// </summary>\n\tHRESULT SetMica(BOOL state = true)\n\t{\n\t\tconst auto DWMWA_MICA = 1029U;\n\t\treturn SetAttribute(DWMWA_MICA, state);\n\t}\n'''
+          if text.count(old_mica) != 1:
+              raise SystemExit('Legacy undocumented Mica helper mismatch')
+          text = text.replace(old_mica, '\n', 1)
+
+          old_runtime = '''\t\t\tif(composition)\n\t\t\t{\n\t\t\t\tAccentPolicy ap(hWnd);\n\t\t\t\t//ap.set(AccentPolicy::Disabled);\n\t\t\t\t//ap.set(ap.AcrylicBlurBehind, ap.AllowSetWindowRgn, _theme.background.color.to_ABGR());\n\n\t\t\t\t//if(_theme.transparent)\n\t\t\t\tCompositor::TransparentArea(hWnd);\n\t\t\t}\n'''
+          new_runtime = '''\t\t\tif(composition)\n\t\t\t{\n\t\t\t\tbool systemBackdropApplied = false;\n\n\t\t\t\t// Context menus are transient surfaces. Prefer the documented Windows 11\n\t\t\t\t// system backdrop when Windows composition/transparency policy allows it.\n\t\t\t\t// NSS effects continue to be resolved by the existing theme pipeline.\n\t\t\t\tif(ver->build() >= 22621 && !_theme.isHighContrast && _theme.enableTransparency)\n\t\t\t\t{\n\t\t\t\t\tsystemBackdropApplied = SUCCEEDED(DWM(hWnd).SetBackdropType(DWM::BackdropType::TransientWindow));\n\t\t\t\t}\n\n\t\t\t\t// Keep the proven compositor path as the fail-safe on unsupported Windows,\n\t\t\t\t// transparency-off configurations, or if DWM rejects the public attribute.\n\t\t\t\tif(!systemBackdropApplied)\n\t\t\t\t\tCompositor::TransparentArea(hWnd);\n\t\t\t}\n'''
+          if text.count(old_runtime) != 1:
+              raise SystemExit('OnMenuCreate compositor block mismatch')
+          text = text.replace(old_runtime, new_runtime, 1)
+
+          path.write_text(text, encoding='utf-8', newline='')
+
+      - name: Validate and commit
+        shell: bash
+        run: |
+          git diff --check
+          if grep -q 'DWMWA_MICA = 1029' src/dll/src/ContextMenu.cpp; then
+            echo 'legacy undocumented Mica attribute still present' >&2
+            exit 1
+          fi
+          grep -q 'BackdropType::TransientWindow' src/dll/src/ContextMenu.cpp
+          git config user.name 'ReinierTutoriales'
+          git config user.email '86568548+ReinierTutoriales@users.noreply.github.com'
+          git add src/dll/src/ContextMenu.cpp
+          git diff --cached --quiet && exit 0
+          git commit -m 'feat: use system-managed transient menu backdrop'
+          git push
