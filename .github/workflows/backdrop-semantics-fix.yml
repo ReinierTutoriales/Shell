@@ -1,0 +1,65 @@
+name: Backdrop semantics integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/backdrop-semantics-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Preserve NSS backdrop overrides
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('src/dll/src/ContextMenu.cpp')
+          s=p.read_text(encoding='utf-8')
+
+          old='''\t\t\tstruct {\n\t\t\t\tint8_t effect = 0;\n\t\t\t\tColor tintcolor;\n\t\t\t} transparency;'''
+          new='''\t\t\tstruct {\n\t\t\t\tint8_t effect = 0;\n\t\t\t\tColor tintcolor;\n\t\t\t\tbool overridden = false;\n\t\t\t} transparency;'''
+          if s.count(old)!=1: raise SystemExit('transparency state mismatch')
+          s=s.replace(old,new,1)
+
+          old='''\t\t\tif(_context.Eval(th->background.effect, obj))\n\t\t\t{\n\t\t\t\t//effect = none = 0, transparent = 1, blur = 2, acrylic = 3, mica = 4, tabbed = 5, add - to force'''
+          new='''\t\t\tif(_context.Eval(th->background.effect, obj))\n\t\t\t{\n\t\t\t\ttransparency.overridden = true;\n\t\t\t\t//effect = none = 0, transparent = 1, blur = 2, acrylic = 3, mica = 4, tabbed = 5, add - to force'''
+          if s.count(old)!=1: raise SystemExit('effect override block mismatch')
+          s=s.replace(old,new,1)
+
+          old='''\t\t\t_theme.background.effect = transparency.effect;'''
+          new='''\t\t\t_theme.background.effect = transparency.effect;\n\t\t\t_theme.background.effectOverridden = transparency.overridden;'''
+          if s.count(old)!=1: raise SystemExit('effect assignment mismatch')
+          s=s.replace(old,new,1)
+
+          old='''\t\t\t\tif(ver->Build >= 22621 && !_theme.isHighContrast && _theme.enableTransparency)'''
+          new='''\t\t\t\tif(ver->Build >= 22621 && !_theme.isHighContrast && _theme.enableTransparency &&\n\t\t\t\t\t!_theme.background.effectOverridden)'''
+          if s.count(old)!=1: raise SystemExit('backdrop gate mismatch')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8',newline='')
+
+          h=Path('src/dll/src/Include/Theme.h')
+          t=h.read_text(encoding='utf-8-sig')
+          old='''\t\t\t\tuint8_t opacity = 0xFF;\n\t\t\t\tint8_t effect = 0;\n\t\t\t\tColor tintcolor;'''
+          new='''\t\t\t\tuint8_t opacity = 0xFF;\n\t\t\t\tint8_t effect = 0;\n\t\t\t\tbool effectOverridden = false;\n\t\t\t\tColor tintcolor;'''
+          if t.count(old)!=1: raise SystemExit('theme background mismatch')
+          t=t.replace(old,new,1)
+          h.write_text(t,encoding='utf-8',newline='')
+      - name: Validate and commit
+        shell: bash
+        run: |
+          git diff --check
+          grep -Fq 'bool effectOverridden = false;' src/dll/src/Include/Theme.h
+          grep -Fq '_theme.background.effectOverridden = transparency.overridden;' src/dll/src/ContextMenu.cpp
+          grep -Fq '!_theme.background.effectOverridden)' src/dll/src/ContextMenu.cpp
+          git config user.name 'ReinierTutoriales'
+          git config user.email '86568548+ReinierTutoriales@users.noreply.github.com'
+          git add src/dll/src/ContextMenu.cpp src/dll/src/Include/Theme.h
+          git commit -m 'fix: preserve explicit NSS backdrop semantics'
+          git push
