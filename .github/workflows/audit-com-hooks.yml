@@ -1,0 +1,24 @@
+name: Audit COM probe and hook consumers
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-com-hooks.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Inspect exact consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== IsCOMLibrary ==='
+          grep -RIn --exclude-dir=.git --exclude='audit-com-hooks.yml' -F 'IsCOMLibrary' . || true
+          echo '=== IO::IsCOMLibrary ==='
+          grep -RIn --exclude-dir=.git -F 'IO::IsCOMLibrary' . || true
+          echo '=== Hooker/win32_hook consumers ==='
+          grep -RIn --exclude-dir=.git -E '#include.*(Hooker|win32_hook)|\bHooker\b|win32_hook|DetourAttach|DetourDetach|SetWindowsHookEx|SetWindowLongPtr|SetWindowSubclass' src/dll src/exe src/setup | head -n 800 || true
+          echo '=== variable DLL construction/load ==='
+          grep -RIn --exclude-dir=.git -E '\bDLL[[:space:]]+[A-Za-z_][A-Za-z0-9_]*\([^L\"]|LoadLibrary(W|ExW)?\([^L\"]' src/dll src/exe src/shared src/setup --exclude='detours.cpp' | head -n 800 || true
