@@ -33,6 +33,22 @@ jobs:
       with:
         persist-credentials: false
 
+    - name: Verify theme system-state architecture
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $theme = Get-Content 'src/dll/src/Include/Theme.h' -Raw
+        $context = Get-Content 'src/dll/src/ContextMenu.cpp' -Raw
+        if ($theme -notmatch 'static SystemState CaptureSystemState\(\)') {
+          throw 'Theme::CaptureSystemState() is missing.'
+        }
+        if ($context -notmatch 'Theme::CaptureSystemState\(\)') {
+          throw 'ContextMenu does not consume Theme::CaptureSystemState().' 
+        }
+        if ($context -match 'Theme::IsDarkMode\(' -or $context -match 'Theme::Personalize\(') {
+          throw 'ContextMenu reintroduced direct theme-state reads outside the snapshot.'
+        }
+
     - name: Verify third-party static libraries
       shell: pwsh
       run: |
