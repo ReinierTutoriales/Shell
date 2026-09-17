@@ -31,7 +31,7 @@ namespace Nilesoft
 				return static_cast<long>(std::rint(value * double(this->val) / double(org)));
 			}
 			/*template<typename T = long>
-			float dpif(T value) const { return float((value * _dpi) / 96.0); }
+			float dpif(T value) const { return float((value * _dpi) / 96.f); }
 			double dpi() const { return double(_dpi) / 96.0; }
 			*/
 
@@ -490,7 +490,6 @@ namespace Nilesoft
 				th.back.padding = { 10, 4, 10, 4 };
 				th.back.margin = { 4, 0, 4, 0 };
 				th.back.radius = 4;
-				th.font.lfHeight = 14;
 				
 				th.tip.padding = { 10,10,10,10 };
 				th.tip.radius = 4;
