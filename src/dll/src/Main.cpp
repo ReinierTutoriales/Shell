@@ -1044,9 +1044,7 @@ BOOL APIENTRY DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID)
 					}
 
 					if(!iathook_NtUserTrackPopupMenuEx.installed())
-					{
-						std::thread([=]() { ::Sleep(2000); hook(); }).detach();
-					}
+						hook();
 
 					if(ver->IsWindows11OrGreater())
 					{
