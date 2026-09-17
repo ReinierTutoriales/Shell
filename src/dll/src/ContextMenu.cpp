@@ -2346,8 +2346,10 @@ namespace Nilesoft
 						if(mii->cch == 0)
 						{
 							rcimg = *rc;
-							rcimg.left += 3;
-							rcimg.right -= 3;
+							// Match the DPI-aware three-pixel baseline used by the
+							// surrounding icon-only menu block.
+							rcimg.left += dpi(3);
+							rcimg.right -= dpi(3);
 						}
 
 						auto g = &draw->glyph;
