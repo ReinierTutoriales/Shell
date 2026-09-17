@@ -629,7 +629,7 @@ namespace Nilesoft
 
 					if(resId >= 0)
 					{
-						h = ::LoadLibraryW(path);
+						h = ::LoadLibraryExW(path, nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
 						fuLoad = 0;
 						path = nullptr;
 					}
