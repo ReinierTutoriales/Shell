@@ -24,7 +24,7 @@ Status legend: `[ ]` pending, `[~]` in progress, `[x]` implemented and verified.
 
 ## Phase 2 — Semantic Windows 11 theme
 
-- [ ] Replace duplicated Light/Dark hard-coded system defaults with semantic palette resolution.
+- [~] Replace duplicated Light/Dark hard-coded system defaults with semantic palette resolution.
 - [ ] Keep explicit White/Black/custom themes as user choices.
 - [ ] Resolve menu font from Windows; use modern Windows font only when supported and appropriate.
 - [ ] Normalize Windows 11 menu radius, item radius, padding, separator and icon metrics through one token source.
