@@ -137,20 +137,20 @@ public:
 	*/
 	Detours &hook()
 	{
-		if(!_installed)
+		if(!_installed && _original && _detour)
 		{
-			DetourAttach(&_original, _detour);
-			_installed = true;
+			if(NO_ERROR == DetourAttach(&_original, _detour))
+				_installed = true;
 		}
 		return *this;
 	}
 
 	Detours &unhook()
 	{
-		if(_installed)
+		if(_installed && _original && _detour)
 		{
-			DetourDetach(&_original, _detour);
-			_installed = false;
+			if(NO_ERROR == DetourDetach(&_original, _detour))
+				_installed = false;
 		}
 		return *this;
 	}
