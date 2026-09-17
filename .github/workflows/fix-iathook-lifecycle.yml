@@ -1,0 +1,40 @@
+name: Fix IAT hook lifecycle
+on:
+  push:
+    paths: ['.github/workflows/fix-iathook-lifecycle.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Patch lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/dll/src/Include/Hooker.h')
+          s=p.read_text(encoding='utf-8-sig')
+          old='''\t\tIATHook &init(HMODULE hModule, const char *import, void *orignal, void *detour)\n\t\t{\n\t\t\t// Increment module reference count to prevent other threads from unloading it while we're working with it\n\t\t\tif(::GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hModule, &_hModule) && _hModule)\n\t\t\t{\n\t\t\t\t//_hModule = hModule;\n\t\t\t\t_import = import;\n\t\t\t\t_orignal = reinterpret_cast<uintptr_t>(orignal);\n\t\t\t\t_detour = reinterpret_cast<uintptr_t>(detour);\n\t\t\t}\n\t\t\treturn *this;\n\t\t}\n'''
+          new='''\t\tIATHook &init(HMODULE hModule, const char *import, void *orignal, void *detour)\n\t\t{\n\t\t\tif(!hModule)\n\t\t\t\treturn *this;\n\n\t\t\tHMODULE module{};\n\t\t\t// Increment module reference count to prevent other threads from unloading it while we're working with it.\n\t\t\tif(::GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCWSTR>(hModule), &module) && module)\n\t\t\t{\n\t\t\t\t// Do not discard an installed hook or its module reference during reinitialization.\n\t\t\t\tif(installed())\n\t\t\t\t{\n\t\t\t\t\t::FreeLibrary(module);\n\t\t\t\t\treturn *this;\n\t\t\t\t}\n\n\t\t\t\tif(_hModule)\n\t\t\t\t\t::FreeLibrary(_hModule);\n\t\t\t\t_hModule = module;\n\t\t\t\t_import = import ? import : "";\n\t\t\t\t_orignal = reinterpret_cast<uintptr_t>(orignal);\n\t\t\t\t_detour = reinterpret_cast<uintptr_t>(detour);\n\t\t\t\t_thunk = {};\n\t\t\t}\n\t\t\treturn *this;\n\t\t}\n'''
+          old2='''\t\t\tif(cleare)\n\t\t\t{\n\t\t\t\t// Release the reference acquired by GetModuleHandleExW before clearing state.\n\t\t\t\tif(_hModule) ::FreeLibrary(_hModule);\n\t\t\t\t_hModule = {};\n\t\t\t\t_import = {};\n\t\t\t\t_orignal = {};\n\t\t\t\t_detour = {};\n\t\t\t\t_thunk = {};\n\t\t\t}\n'''
+          new2='''\t\t\t// Never clear ownership/state while the detour is still installed.\n\t\t\tif(cleare && !installed())\n\t\t\t{\n\t\t\t\t// Release the reference acquired by GetModuleHandleExW before clearing state.\n\t\t\t\tif(_hModule) ::FreeLibrary(_hModule);\n\t\t\t\t_hModule = {};\n\t\t\t\t_import = {};\n\t\t\t\t_orignal = {};\n\t\t\t\t_detour = {};\n\t\t\t\t_thunk = {};\n\t\t\t}\n'''
+          if s.count(old)!=1: raise SystemExit(f'init block count={s.count(old)}')
+          if s.count(old2)!=1: raise SystemExit(f'uninstall block count={s.count(old2)}')
+          s=s.replace(old,new).replace(old2,new2)
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git diff --check
+          git diff -- src/dll/src/Include/Hooker.h
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/dll/src/Include/Hooker.h
+          git commit -m 'fix: harden IAT hook lifecycle'
+          git pull --rebase origin main
+          git push origin HEAD:main
