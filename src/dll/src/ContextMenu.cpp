@@ -2223,7 +2223,8 @@ namespace Nilesoft
 			//SystemParametersInfoForDpi
 			auto sets = &_cache->settings;
 			//auto isW11OrGreater = ver->IsWindows11OrGreater();
-			auto isHighContrast = Theme::IsHighContrast();
+			const auto systemState = Theme::CaptureSystemState();
+			auto isHighContrast = systemState.highContrast;
 
 			Object obj;
 
@@ -2237,23 +2238,12 @@ namespace Nilesoft
 		//	long zofont = std::abs(font.menu.lfHeight);
 			_context.font.text = font.menu.lfFaceName;
 
-			bool enableTransparency = false;
-			bool systemUsesLightTheme = true;
-			bool appsUseLightTheme = true;
+			bool enableTransparency = systemState.transparency;
+			bool systemUsesLightTheme = systemState.systemUsesLightTheme;
+			bool appsUseLightTheme = systemState.appsUseLightTheme;
 
-			if(isHighContrast)
-				_theme.system.mode = 2;
-			else
-			{
-				Theme::Personalize(&systemUsesLightTheme, &appsUseLightTheme, &enableTransparency);
-				_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);
-			}
+			_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);
 
-			_theme.enableTransparency = enableTransparency;
-			_theme.systemUsesLightTheme = systemUsesLightTheme;
-			_theme.appsUseLightTheme = appsUseLightTheme;
-			_theme.isHighContrast = isHighContrast;
-			
 
 			auto is_sys_dark = Selected.Window.isTaskbar() ? !systemUsesLightTheme : !appsUseLightTheme;// Theme::IsDarkMode(Selected.Window.isTaskbar());
 
