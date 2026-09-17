@@ -1,0 +1,24 @@
+name: Audit D2D consumers
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-d2d-consumers.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Enumerate D2D production consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== OnDrawItem_D2D ==='
+          grep -RIn --exclude-dir=.git --exclude='audit-d2d-consumers.yml' 'OnDrawItem_D2D' src || true
+          echo '=== render_d2d ==='
+          grep -RIn --exclude-dir=.git --exclude='audit-d2d-consumers.yml' 'render_d2d' src || true
+          echo '=== member d2d uses ==='
+          grep -RIn --exclude-dir=.git --exclude='audit-d2d-consumers.yml' -E '([.-]>|\.)d2d\b|\bd2d\.' src || true
+          echo '=== D2D declarations/usages ==='
+          grep -RIn --exclude-dir=.git --exclude='audit-d2d-consumers.yml' -E '\bD2D\b|D2D1_|DWRITE_' src/dll/src src/dll/include 2>/dev/null || true
