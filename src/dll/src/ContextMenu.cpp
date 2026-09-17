@@ -2661,6 +2661,7 @@ namespace Nilesoft
 			struct {
 				int8_t effect = 0;
 				Color tintcolor;
+				bool overridden = false;
 			} transparency;
 
 			if(enableTransparency)
@@ -2670,6 +2671,7 @@ namespace Nilesoft
 
 			if(_context.Eval(th->background.effect, obj))
 			{
+				transparency.overridden = true;
 				//effect = none = 0, transparent = 1, blur = 2, acrylic = 3, mica = 4, tabbed = 5, add - to force
 				auto ef = [&](Object &o)->bool
 				{
@@ -3182,6 +3184,7 @@ namespace Nilesoft
 			}
 
 			_theme.background.effect = transparency.effect;
+			_theme.background.effectOverridden = transparency.overridden;
 
 			if(transparency.tintcolor)
 				_theme.background.tintcolor = transparency.tintcolor;
@@ -5023,7 +5026,8 @@ if(__font.name.is_string())
 				// Context menus are transient surfaces. Prefer the documented Windows 11
 				// system backdrop when Windows composition/transparency policy allows it.
 				// NSS effects continue to be resolved by the existing theme pipeline.
-				if(ver->Build >= 22621 && !_theme.isHighContrast && _theme.enableTransparency)
+				if(ver->Build >= 22621 && !_theme.isHighContrast && _theme.enableTransparency &&
+					!_theme.background.effectOverridden)
 				{
 					systemBackdropApplied = SUCCEEDED(DWM(hWnd).SetBackdropType(DWM::BackdropType::TransientWindow));
 				}

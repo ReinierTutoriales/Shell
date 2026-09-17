@@ -141,6 +141,7 @@ namespace Nilesoft
 				Color color;
 				uint8_t opacity = 0xFF;
 				int8_t effect = 0;
+				bool effectOverridden = false;
 				Color tintcolor;
 				string image;
 			} background;
