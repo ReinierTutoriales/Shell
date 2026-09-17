@@ -2595,7 +2595,7 @@ namespace Nilesoft
 			else
 			{
 				Theme::Personalize(&systemUsesLightTheme, &appsUseLightTheme, &enableTransparency);
-				_theme.system.mode = systemUsesLightTheme ? 0 : 1;
+				_theme.system.mode = isHighContrast ? 2 : (systemUsesLightTheme ? 0 : 1);
 			}
 
 			_theme.enableTransparency = enableTransparency;
@@ -3703,21 +3703,11 @@ namespace Nilesoft
 			}
 			else if(S_OK != ::GetThemeSysFont(_hTheme, TMT_MENUFONT, &_theme.font))
 			{
-				_theme.font.lfHeight = 12;dpi.valuexx<long>(12);
+				_theme.font.lfHeight = dpi.valuexx<long>(12);
 				_theme.font.lfQuality = DEFAULT_QUALITY;
 				string::Copy(_theme.font.lfFaceName, L"Segoe UI");
 			}
-
-			if(ver->IsWindows11OrGreater()) 
-			{
-				DWORD dwTextScaleFactor = 100, cbData;
-				::RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Accessibility", 
-							   L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData);
-				long scale = ((dpi.val + 24) * dwTextScaleFactor) / 100;
-				_theme.font.lfHeight = 12 * scale / 100;
-			}
-					
-			if(__font.name.is_string())
+if(__font.name.is_string())
 			{
 				string value = __font.name.to_string().trim().move();
 				if(!value.empty())
