@@ -1,0 +1,24 @@
+name: Audit DLL and registry consumers
+on:
+  push:
+    paths:
+      - '.github/workflows/audit-dll-reg-consumers.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Inspect consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== DLL wrapper includes ==='
+          grep -RIn --exclude-dir=.git -E '#include[[:space:]]*[<\"]([^\">]*/)?DLL\.h[>\"]|\bDLL[[:space:]]+[A-Za-z_]|DLL::(Load|Get|Invoke|Kernel32|User32)' src --exclude='DLL.h' | head -n 500 || true
+          echo '=== direct executable LoadLibrary calls ==='
+          grep -RIn --exclude-dir=.git -E 'LoadLibrary(W|ExW)?\(' src/dll src/exe src/setup --exclude='detours.cpp' | head -n 500 || true
+          echo '=== registry expression identifiers/docs/examples ==='
+          grep -RIn --exclude-dir=.git -E 'reg\.(set|delete|get|exists|keys|values)|IDENT_(SET|DELETE).*REG|IDENT_REG' . --exclude='FuncExpression.cpp' | head -n 500 || true
+          echo '=== reg parser vicinity ==='
+          grep -RIn --exclude-dir=.git -E 'IDENT_REGISTRY|IDENT_REG\b|MENU_REG|REGISTRY' src/dll/src/Parser src/dll/src/Expression | head -n 500 || true
