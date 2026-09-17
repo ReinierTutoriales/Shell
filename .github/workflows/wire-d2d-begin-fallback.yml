@@ -1,0 +1,32 @@
+name: Wire D2D begin fallback
+on:
+  push:
+    paths:
+      - '.github/workflows/wire-d2d-begin-fallback.yml'
+permissions:
+  contents: write
+concurrency:
+  group: wire-d2d-begin-fallback
+  cancel-in-progress: true
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Wire begin result into production consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/dll/src/ContextMenu.cpp')
+          s=p.read_text(encoding='utf-8')
+          needle='d2d.begin(hdc, rect);'
+          print('begin consumer count:', s.count(needle))
+          if s.count(needle) != 1:
+              raise SystemExit('expected exactly one D2D begin consumer')
+          pos=s.index(needle)
+          print(s[max(0,pos-1000):pos+1800])
+          PY
