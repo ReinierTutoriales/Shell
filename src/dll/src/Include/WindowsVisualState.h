@@ -16,6 +16,7 @@ namespace Nilesoft
 			bool compositionEnabled{};
 			bool windows11{};
 			bool transientBackdropSupported{};
+			uint32_t build{};
 			uint32_t dpi{ 96 };
 			COLORREF accent{};
 
@@ -26,8 +27,43 @@ namespace Nilesoft
 
 			bool allow_transient_backdrop() const
 			{
-				return windows11 && transientBackdropSupported && compositionEnabled &&
+				return transientBackdropSupported && compositionEnabled &&
 					transparencyEnabled && !highContrast;
+			}
+
+			// Applies only Windows-owned non-client policy. Shell continues to draw
+			// its content and NSS can still override the renderer's semantic tokens.
+			// Every DWM call is deliberately best-effort so Explorer always retains
+			// the existing solid rendering path when a capability is unavailable.
+			void ApplyTransientWindow(HWND window, bool taskbar = false) const
+			{
+				if(!window || !compositionEnabled)
+					return;
+
+				constexpr DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_ = 20;
+				constexpr DWORD DWMWA_WINDOW_CORNER_PREFERENCE_ = 33;
+				constexpr DWORD DWMWA_SYSTEMBACKDROP_TYPE_ = 38;
+				constexpr int DWMWCP_ROUNDSMALL_ = 3;
+				constexpr int DWMSBT_NONE_ = 1;
+				constexpr int DWMSBT_TRANSIENTWINDOW_ = 3;
+
+				const BOOL useDark = dark(taskbar) ? TRUE : FALSE;
+				::DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE_, &useDark, sizeof(useDark));
+
+				if(windows11)
+				{
+					const int corner = DWMWCP_ROUNDSMALL_;
+					::DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE_, &corner, sizeof(corner));
+				}
+
+				// DWMSBT_TRANSIENTWINDOW delegates the actual transient material to
+				// Windows instead of hard-coding an Acrylic implementation in Shell.
+				// This also lets future Windows versions evolve the material policy.
+				if(transientBackdropSupported)
+				{
+					const int backdrop = allow_transient_backdrop() ? DWMSBT_TRANSIENTWINDOW_ : DWMSBT_NONE_;
+					::DwmSetWindowAttribute(window, DWMWA_SYSTEMBACKDROP_TYPE_, &backdrop, sizeof(backdrop));
+				}
 			}
 
 			static WindowsVisualState Capture(HWND owner = nullptr, uint32_t requestedDpi = 0)
@@ -70,9 +106,24 @@ namespace Nilesoft
 					state.accent = ::GetSysColor(COLOR_HIGHLIGHT);
 
 				state.windows11 = Windows::Version::Instance().IsWindows11OrGreater();
-				// DWMWA_SYSTEMBACKDROP_TYPE is a Windows 11 capability. The actual
-				// DWM call remains fail-safe: callers must keep a solid fallback.
-				state.transientBackdropSupported = state.windows11;
+
+				// DWMWA_SYSTEMBACKDROP_TYPE is documented for Windows 11 22H2
+				// (build 22621) and later. Query the real OS build so we do not send
+				// attribute 38 merely because the machine is some Windows 11 build.
+				using RtlGetVersion_t = LONG(WINAPI *)(PRTL_OSVERSIONINFOW);
+				if(auto ntdll = ::GetModuleHandleW(L"ntdll.dll"))
+				{
+					if(auto rtlGetVersion = reinterpret_cast<RtlGetVersion_t>(::GetProcAddress(ntdll, "RtlGetVersion")))
+					{
+						RTL_OSVERSIONINFOW version{ sizeof(version) };
+						if(rtlGetVersion(&version) == 0)
+						{
+							state.build = version.dwBuildNumber;
+							state.windows11 = version.dwMajorVersion >= 10 && version.dwBuildNumber >= 22000;
+							state.transientBackdropSupported = version.dwMajorVersion >= 10 && version.dwBuildNumber >= 22621;
+						}
+					}
+				}
 
 				if(requestedDpi)
 					state.dpi = requestedDpi;
