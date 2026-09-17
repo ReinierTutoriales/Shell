@@ -33,6 +33,28 @@ jobs:
       with:
         persist-credentials: false
 
+    - name: Verify third-party static libraries
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $expected = @{
+          'src/shared/Library/detours-arm64.lib' = '856cf55f6aa2019e93cbb1d2bc3d3a2665e342d36d0f15e485d5d3c167690d23'
+          'src/shared/Library/detours-x64.lib' = 'e28690ba4f609c3fc9ec2ee899b25e68f42956c0751f9ab1f3ea7b4e185a8035'
+          'src/shared/Library/detours-x86.lib' = '4b0307d209c462418e31fd399eac98a3e95b20444ba71899f8d1891f87f5079e'
+          'src/shared/Library/plutosvg-arm64.lib' = '8085acda1cb38eb9d4b21a858f133076066778da8460f32315500368f579847a'
+          'src/shared/Library/plutosvg-x64.lib' = '208e7ee45a990c891afe94cc1b4801d4a762db148392f0593e203fd38d03c766'
+          'src/shared/Library/plutosvg-x86.lib' = '77d2e1703857ebb39e56e78f430c28cbcb9dd4a81144cba1bb65f0e0e232383b'
+        }
+        foreach ($entry in $expected.GetEnumerator()) {
+          if (-not (Test-Path $entry.Key)) {
+            throw "Missing third-party library: $($entry.Key)"
+          }
+          $actual = (Get-FileHash $entry.Key -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $entry.Value) {
+            throw "SHA-256 mismatch for $($entry.Key): expected $($entry.Value), got $actual"
+          }
+        }
+
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
       with:
