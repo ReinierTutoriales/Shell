@@ -2522,8 +2522,9 @@ namespace Nilesoft
 
 						mi->itemWidth += std::max<uint32_t>(menu->draw.length, mii->size.cx);
 
-						// Remove extra space 'Submenu icon size'
-						mi->itemWidth -= dpi.original(14);
+						// The submenu slot is device-pixel geometry; compensate it at the
+						// active menu DPI instead of subtracting a fixed 96-DPI width.
+						mi->itemWidth -= dpi(14);
 					}
 				}
 			}
