@@ -3762,19 +3762,6 @@ namespace Nilesoft
 				_theme.font.lfHeight = -dpi.value<long>(font_size);
 			}
 			
-			// Resolve Windows-owned vertical menu spacing only after the final font.
-			if((_theme.Type == ThemeType::System || _theme.Type == ThemeType::Auto) && !_theme.isHighContrast)
-			{
-				const auto menuHeight = ::GetSystemMetricsForDpi(SM_CYMENU, dpi.val);
-				const auto fontHeight = std::abs(_theme.font.lfHeight);
-				if(menuHeight > 0 && fontHeight > 0)
-				{
-					const auto space = (std::max)(0L, static_cast<long>(menuHeight) - fontHeight);
-					_theme.back.padding.top = space / 2;
-					_theme.back.padding.bottom = space - _theme.back.padding.top;
-				}
-			}
-
 			if(_theme.image.enabled) 
 			{
 				if(th->image.color)
